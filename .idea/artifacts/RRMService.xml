@@ -1,0 +1,23 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="RRMService">
+    <output-path>$PROJECT_DIR$/out/artifacts/RRMService</output-path>
+    <root id="archive" name="RRMService.jar">
+      <element id="module-output" name="RRMService" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/httpcomponents-client-4.5.2/lib/httpclient-4.5.2.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/httpcomponents-client-4.5.2/lib/httpcore-4.4.4.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/httpcomponents-client-4.5.2/lib/commons-logging-1.2.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/httpcomponents-client-4.5.2/lib/commons-codec-1.9.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/ap-lib/slf4j-api-1.7.21.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/ap-lib/slf4j-log4j12-1.7.21.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/ap-lib/log4j-1.2-api-2.5.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/ap-lib/log4j-api-2.5.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/ap-lib/log4j-core-2.5.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/ap-lib/dom4j-1.6.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/ap-lib/jaxen-1.1-beta-6.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/ap-lib/jaxme-api-0.3.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/sqlite-jdbc-3.7.2/sqlite-jdbc-3.7.2.jar" path-in-jar="/" />
+      <element id="library" level="project" name="wrapper" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../library/YDTA800_v1.1.161228_jdk1.7.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

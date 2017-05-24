@@ -1,0 +1,24 @@
+Manifest-Version: 1.0
+Main-Class: com.ydttech.Main
+Name: RRM
+Specification-Title: RFID Reader Middleware for DUIT
+Specification-Version: 0.1.6
+Specification-Vendor: YDT Technology International Co. Ltd.
+Implementation-Title: 20161024 1.first release
+ 201610241300 1.event time raised by rrm server 2.fix re-connect handle 3.fix alarm code 4.filter empty epc data
+ 0.0.3 1.modify NormalEvent table and add event_name column
+ 0.0.4 1.modify log info 2.add departure timeout 3.modify alarm code
+ 0.0.5 1.postNormal and postAlarm using thread to send request
+ 0.0.6 1.using java service wrapper framework
+ 0.0.7 1.tuning re-connect procedure 2.modify log information 3.fix re-active procedure 4.fix arr./dep. algorithm
+ 0.0.8 1.fix connection flood bug.
+ 0.0.9 1.re-write arr./dep. algorithm
+ 0.1.0 1.remove report log 2.change A800 SDK 3.remove reboot procedure 4.add A800SDK log
+ 0.1.1 1.add logDb purge job
+ 0.1.2 1.reduce purge job verify times
+ 0.1.3 1.reader log filename seperated by reader_name 2.doing socket close while re-connect
+ 0.1.4 1.add routine job to check reader is in active mode to receive data
+ 0.1.5 1.remove time field with tag report format 2.set post event thread priority to Thread.MAX_PRIORITY 3.remove tid check
+ 0.1.6 1.config add epc pattern to verified 2.adjust routine check process timing
+Implementation-Version: 2017/04/18 16:00:00
+Implementation-Vendor: Ean.Chung

@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="wrapper">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../library/wrapper-windows-x86-32-3.5.30/lib/wrapper.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

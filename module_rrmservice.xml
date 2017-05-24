@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="module_rrmservice" default="compile.module.rrmservice">
+  <dirname property="module.rrmservice.basedir" file="${ant.file.module_rrmservice}"/>
+  
+  <property name="module.jdk.home.rrmservice" value="${project.jdk.home}"/>
+  <property name="module.jdk.bin.rrmservice" value="${project.jdk.bin}"/>
+  <property name="module.jdk.classpath.rrmservice" value="${project.jdk.classpath}"/>
+  
+  <property name="compiler.args.rrmservice" value="-encoding UTF-8 -source 1.7 -target 1.7 ${compiler.args}"/>
+  
+  <property name="rrmservice.output.dir" value="${module.rrmservice.basedir}/out/production/RRMService"/>
+  <property name="rrmservice.testoutput.dir" value="${module.rrmservice.basedir}/out/test/RRMService"/>
+  
+  <path id="rrmservice.module.bootclasspath">
+    <!-- Paths to be included in compilation bootclasspath -->
+  </path>
+  
+  <path id="rrmservice.module.production.classpath">
+    <path refid="${module.jdk.classpath.rrmservice}"/>
+    <path refid="library.commons-net-3.5.classpath"/>
+    <path refid="library.jackson-annotations-2.7.3.classpath"/>
+    <path refid="library.log4j-1.2-api-2.5.classpath"/>
+    <pathelement location="${basedir}/../library/ap-lib/dom4j-1.6.1.jar"/>
+    <pathelement location="${basedir}/../library/ap-lib/jaxen-1.1-beta-6.jar"/>
+    <pathelement location="${basedir}/../library/ap-lib/jaxme-api-0.3.jar"/>
+    <path refid="library.ydta800_v1.1_jdk1.7.classpath"/>
+    <path refid="library.commons-codec-1.9.classpath"/>
+    <path refid="library.wrapper.classpath"/>
+    <path refid="library.sqlite-jdbc-3.7.2.classpath"/>
+  </path>
+  
+  <path id="rrmservice.runtime.production.module.classpath">
+    <pathelement location="${rrmservice.output.dir}"/>
+    <path refid="library.commons-net-3.5.classpath"/>
+    <path refid="library.jackson-annotations-2.7.3.classpath"/>
+    <path refid="library.log4j-1.2-api-2.5.classpath"/>
+    <pathelement location="${basedir}/../library/ap-lib/dom4j-1.6.1.jar"/>
+    <pathelement location="${basedir}/../library/ap-lib/jaxen-1.1-beta-6.jar"/>
+    <pathelement location="${basedir}/../library/ap-lib/jaxme-api-0.3.jar"/>
+    <path refid="library.ydta800_v1.1_jdk1.7.classpath"/>
+    <path refid="library.commons-codec-1.9.classpath"/>
+    <path refid="library.wrapper.classpath"/>
+    <path refid="library.sqlite-jdbc-3.7.2.classpath"/>
+  </path>
+  
+  <path id="rrmservice.module.classpath">
+    <path refid="${module.jdk.classpath.rrmservice}"/>
+    <pathelement location="${rrmservice.output.dir}"/>
+    <path refid="library.commons-net-3.5.classpath"/>
+    <path refid="library.jackson-annotations-2.7.3.classpath"/>
+    <path refid="library.log4j-1.2-api-2.5.classpath"/>
+    <pathelement location="${basedir}/../library/ap-lib/dom4j-1.6.1.jar"/>
+    <pathelement location="${basedir}/../library/ap-lib/jaxen-1.1-beta-6.jar"/>
+    <pathelement location="${basedir}/../library/ap-lib/jaxme-api-0.3.jar"/>
+    <path refid="library.ydta800_v1.1_jdk1.7.classpath"/>
+    <path refid="library.commons-codec-1.9.classpath"/>
+    <path refid="library.wrapper.classpath"/>
+    <path refid="library.sqlite-jdbc-3.7.2.classpath"/>
+  </path>
+  
+  <path id="rrmservice.runtime.module.classpath">
+    <pathelement location="${rrmservice.testoutput.dir}"/>
+    <pathelement location="${rrmservice.output.dir}"/>
+    <path refid="library.commons-net-3.5.classpath"/>
+    <path refid="library.jackson-annotations-2.7.3.classpath"/>
+    <path refid="library.log4j-1.2-api-2.5.classpath"/>
+    <pathelement location="${basedir}/../library/ap-lib/dom4j-1.6.1.jar"/>
+    <pathelement location="${basedir}/../library/ap-lib/jaxen-1.1-beta-6.jar"/>
+    <pathelement location="${basedir}/../library/ap-lib/jaxme-api-0.3.jar"/>
+    <path refid="library.ydta800_v1.1_jdk1.7.classpath"/>
+    <path refid="library.commons-codec-1.9.classpath"/>
+    <path refid="library.wrapper.classpath"/>
+    <path refid="library.sqlite-jdbc-3.7.2.classpath"/>
+  </path>
+  
+  
+  <patternset id="excluded.from.module.rrmservice">
+    <patternset refid="ignored.files"/>
+  </patternset>
+  
+  <patternset id="excluded.from.compilation.rrmservice">
+    <patternset refid="excluded.from.module.rrmservice"/>
+  </patternset>
+  
+  <path id="rrmservice.module.sourcepath">
+    <dirset dir="${module.rrmservice.basedir}">
+      <include name="src"/>
+    </dirset>
+  </path>
+  
+  
+  <target name="compile.module.rrmservice" depends="compile.module.rrmservice.production,compile.module.rrmservice.tests" description="Compile module RRMService"/>
+  
+  <target name="compile.module.rrmservice.production" depends="register.custom.compilers" description="Compile module RRMService; production classes">
+    <mkdir dir="${rrmservice.output.dir}"/>
+    <javac2 destdir="${rrmservice.output.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.rrmservice}/javac">
+      <compilerarg line="${compiler.args.rrmservice}"/>
+      <bootclasspath refid="rrmservice.module.bootclasspath"/>
+      <classpath refid="rrmservice.module.production.classpath"/>
+      <src refid="rrmservice.module.sourcepath"/>
+      <patternset refid="excluded.from.compilation.rrmservice"/>
+    </javac2>
+    
+    <copy todir="${rrmservice.output.dir}">
+      <fileset dir="${module.rrmservice.basedir}/src">
+        <patternset refid="compiler.resources"/>
+        <type type="file"/>
+      </fileset>
+    </copy>
+  </target>
+  
+  <target name="compile.module.rrmservice.tests" depends="register.custom.compilers,compile.module.rrmservice.production" description="compile module RRMService; test classes" unless="skip.tests"/>
+  
+  <target name="clean.module.rrmservice" description="cleanup module">
+    <delete dir="${rrmservice.output.dir}"/>
+    <delete dir="${rrmservice.testoutput.dir}"/>
+  </target>
+</project>
