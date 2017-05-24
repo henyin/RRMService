@@ -24,7 +24,7 @@ public class A800 extends ReaderClient implements Runnable {
         super(type, uri);
         this.rrmConfig = rrmConfig;
         this._uri = rrmConfig.getIpAddr();
-        logger.info("tst");
+        logger.info("test");
 
     }
 
