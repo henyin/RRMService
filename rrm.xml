@@ -3,19 +3,19 @@
 
     <!-- 不啟用TagFilter 時 請將Pattern 項目刪除 -->
     <TagFilter>
-        <Pattern>09300402</Pattern>
-        <Pattern>20160107</Pattern>
+        <!--<Pattern>09300402</Pattern>-->
+        <!--<Pattern>20160107</Pattern>-->
     </TagFilter>
 
     <DBConfig>
-        <DBURL>jdbc:sqlite:../logs/rrm.db</DBURL>
+        <DBURL>jdbc:sqlite:../logs/</DBURL>
         <PurgeDay>100</PurgeDay>
     </DBConfig>
 
     <!-- URL 空白表示不啟用 -->
     <EventPostURL>
-        <ArriveEventPostURL>http://192.168.1.95:8080/</ArriveEventPostURL>
-        <DepartureEventPostURL>http://192.168.1.95:8080/</DepartureEventPostURL>
+        <!--<ArriveEventPostURL>http://192.168.1.95:8080/</ArriveEventPostURL>-->
+        <!--<DepartureEventPostURL>http://192.168.1.95:8080/</DepartureEventPostURL>-->
         <AlarmEventPostURL></AlarmEventPostURL>
         <!--<ArriveEventPostURL>http://vmp.duit.com.cn/Middleware/arrive</ArriveEventPostURL>-->
         <!--<DepartureEventPostURL>http://vmp.duit.com.cn/Middleware/departure</DepartureEventPostURL>-->
@@ -30,16 +30,24 @@
 
     <ReaderConfig>
         <Reader name="readerYDT3" ip="192.168.1.156" departureTimeout="10000">
-            <AntennaPort id="1" power=""/>
-            <AntennaPort id="2" power="2200" />
+            <AntennaPort id="1" power="2200"/>
+            <AntennaPort id="2" power="" />
             <AntennaPort id="4" power="" />
             <AntennaPort id="3" power="" />
             <TemperatureLimit min="-30" max="60" />
             <ConnBrokenLimit timeout="10000" times="3" />
         </Reader>
-        <!--<Reader name="readerYDT2" ip="192.168.1.248" departureTimeout="10000">-->
-            <!--<AntennaPort id="1" power="" />-->
-            <!--<AntennaPort id="2" power="2200" />-->
+        <!--<Reader name="readerYDT2" ip="192.168.1.156" departureTimeout="10000">-->
+            <!--<AntennaPort id="1" power="2200" />-->
+            <!--<AntennaPort id="2" power="" />-->
+            <!--<AntennaPort id="3" power="" />-->
+            <!--<AntennaPort id="4" power="" />-->
+            <!--<TemperatureLimit min="-30" max="60" />-->
+            <!--<ConnBrokenLimit timeout="10000" times="3" />-->
+        <!--</Reader>-->
+        <!--<Reader name="readerYDT3" ip="192.168.1.156" departureTimeout="10000">-->
+            <!--<AntennaPort id="1" power="2200" />-->
+            <!--<AntennaPort id="2" power="" />-->
             <!--<AntennaPort id="3" power="" />-->
             <!--<AntennaPort id="4" power="" />-->
             <!--<TemperatureLimit min="-30" max="60" />-->

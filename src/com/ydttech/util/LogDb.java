@@ -1,5 +1,7 @@
-package com.ydttech;
+package com.ydttech.util;
 
+import com.ydttech.vo.AlarmEventData;
+import com.ydttech.vo.NormalEventData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +57,7 @@ public class LogDb {
     }
 
     public void init() {
-        logger.info("init log db ......");
+        logger.info("Start initial SQLite db file in dbURL:{}", dbURL);
         getConnRes();
 
         doSql(createNormal);

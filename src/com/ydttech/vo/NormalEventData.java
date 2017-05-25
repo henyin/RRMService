@@ -1,4 +1,4 @@
-package com.ydttech;
+package com.ydttech.vo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -101,7 +101,7 @@ public class NormalEventData implements Cloneable {
     }
 
     @Override
-    protected Object clone() throws CloneNotSupportedException {
+    public Object clone() throws CloneNotSupportedException {
         return super.clone();
     }
 }

@@ -1,26 +1,22 @@
-package com.ydttech;
+package com.ydttech.core;
 
-import com.sun.org.apache.regexp.internal.RE;
-import com.sun.org.apache.xml.internal.utils.ThreadControllerWrapper;
 import com.ydt.driver.ConnectionException;
 import com.ydt.driver.ConnectionType;
 import com.ydt.driver.IEventDataListener;
 import com.ydt.invoke.InvokeError;
-import com.ydt.invoke.InvokeResult;
 import com.ydt.log.Report;
 import com.ydt.reader.Command;
 import com.ydt.reader.ReaderClient;
 import com.ydt.types.EventData;
 import com.ydt.types.EventType;
+import com.ydttech.util.LogDb;
+import com.ydttech.vo.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.net.CookieHandler;
-import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -70,9 +66,6 @@ public class ReaderDev implements Runnable {
     private String alarm_fmt_time, event_fmt_time;
     private int currDayOfYear  = Calendar.getInstance().get(Calendar.DAY_OF_YEAR);
 
-    private Map<String, EventProcess> eventProcessMap = new HashMap<String, EventProcess>();
-
-
     public ReaderDev(RRMConfig rrmConfig) {
         this.rrmConfig = rrmConfig;
         deviceName = rrmConfig.getReaderName();
@@ -83,11 +76,11 @@ public class ReaderDev implements Runnable {
         connBrokenTimeoutLimit = Integer.parseInt(rrmConfig.getConnBrokenTimeoutLimit());
         tagPatternList = new ArrayList<String>(rrmConfig.getTagPatternList());
 
-        logDb = new LogDb(rrmConfig.getDbURL());
+        logDb = new LogDb(rrmConfig.getDbURL() + rrmConfig.getReaderName() + ".db");
         logDb.init();
 
         eventDataAnalyst = new EventDataAnalyst(rrmConfig, (ConcurrentHashMap) currDataMap);
-        analystScheduled.scheduleAtFixedRate(eventDataAnalyst, 0, 4, TimeUnit.SECONDS);
+        analystScheduled.scheduleAtFixedRate(eventDataAnalyst, 0, Integer.parseInt(rrmConfig.getDepartureTimeout())/2, TimeUnit.MILLISECONDS);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {

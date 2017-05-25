@@ -1,20 +1,17 @@
 package com.ydttech;
 
-import com.ydt.driver.ConnectionException;
-import com.ydt.driver.ConnectionType;
-import com.ydt.invoke.InvokeError;
+import com.ydttech.core.ReaderDev;
+import com.ydttech.util.LogDb;
+import com.ydttech.vo.RRMConfig;
 import org.dom4j.Document;
 import org.dom4j.Node;
 import org.dom4j.io.SAXReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tanukisoftware.wrapper.WrapperManager;
 
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.net.InetAddress;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -82,7 +79,7 @@ public class Middleware {
 //                thread.start();
 //            }
 
-            logDb.init();
+//            logDb.init();
 
         } catch (Exception e) {
             StringWriter error = new StringWriter();
@@ -125,7 +122,7 @@ public class Middleware {
                 purgeDay = node.valueOf("PurgeDay") == "" ? "150" : node.valueOf("PurgeDay");
             }
 
-            logDb = new LogDb(dbURL);
+//            logDb = new LogDb(dbURL);
         }
 
         if (retCode == 0) {

@@ -1,4 +1,4 @@
-package com.ydttech;
+package com.ydttech.vo;
 
 /**
  * Created by Ean.Chung on 2016/10/17.

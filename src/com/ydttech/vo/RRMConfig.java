@@ -1,4 +1,4 @@
-package com.ydttech;
+package com.ydttech.vo;
 
 import java.util.ArrayList;
 import java.util.List;
