@@ -87,7 +87,7 @@ public class ReaderDev implements Runnable {
         logDb.init();
 
         eventDataAnalyst = new EventDataAnalyst(rrmConfig, (ConcurrentHashMap) currDataMap);
-        analystScheduled.scheduleAtFixedRate(eventDataAnalyst, 0, 400, TimeUnit.MILLISECONDS);
+        analystScheduled.scheduleAtFixedRate(eventDataAnalyst, 0, 4, TimeUnit.SECONDS);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
