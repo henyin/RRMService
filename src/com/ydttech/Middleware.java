@@ -67,18 +67,7 @@ public class Middleware {
         try {
             for (RRMConfig rrmConfig : rrmConfigList) {
                 new Thread(new ReaderDev((rrmConfig))).start();
-//                readerList.add(new ReaderDev((rrmConfig)));
             }
-
-//            for (ReaderDev readerImpl : readerList) {
-//                deviceList.add(new Thread(readerImpl));
-//            }
-//
-//            for (Thread thread : deviceList) {
-//                thread.start();
-//            }
-
-//            logDb.init();
 
         } catch (Exception e) {
             StringWriter error = new StringWriter();
@@ -121,7 +110,6 @@ public class Middleware {
                 purgeDay = node.valueOf("PurgeDay") == "" ? "150" : node.valueOf("PurgeDay");
             }
 
-//            logDb = new LogDb(dbURL);
         }
 
         if (retCode == 0) {
