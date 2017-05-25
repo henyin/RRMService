@@ -32,7 +32,6 @@ public class Middleware {
     String arriveURL, departureURL, alarmURL;
 
     private List<RRMConfig> rrmConfigList = new ArrayList<RRMConfig>();
-    private List<ReaderDev> readerList = new ArrayList<ReaderDev>();
 
     private String dbURL, purgeDay;
 
@@ -47,10 +46,6 @@ public class Middleware {
     }
 
     private static AtomicBoolean started = new AtomicBoolean(false);
-
-    private boolean keepRunning = false;
-
-    public List<Thread> deviceList = new ArrayList<Thread>();
 
     public boolean init() {
 
@@ -67,18 +62,7 @@ public class Middleware {
         try {
             for (RRMConfig rrmConfig : rrmConfigList) {
                 new Thread(new ReaderDev((rrmConfig))).start();
-//                readerList.add(new ReaderDev((rrmConfig)));
             }
-
-//            for (ReaderDev readerImpl : readerList) {
-//                deviceList.add(new Thread(readerImpl));
-//            }
-//
-//            for (Thread thread : deviceList) {
-//                thread.start();
-//            }
-
-//            logDb.init();
 
         } catch (Exception e) {
             StringWriter error = new StringWriter();
@@ -121,7 +105,6 @@ public class Middleware {
                 purgeDay = node.valueOf("PurgeDay") == "" ? "150" : node.valueOf("PurgeDay");
             }
 
-//            logDb = new LogDb(dbURL);
         }
 
         if (retCode == 0) {
