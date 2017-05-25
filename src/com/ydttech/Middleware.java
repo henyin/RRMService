@@ -34,7 +34,6 @@ public class Middleware {
     private List<RRMConfig> rrmConfigList = new ArrayList<RRMConfig>();
     private List<ReaderDev> readerList = new ArrayList<ReaderDev>();
 
-    private LogDb logDb;
     private String dbURL, purgeDay;
 
     private List<String> patternList = new ArrayList<String>();
