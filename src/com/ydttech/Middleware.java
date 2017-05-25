@@ -1,7 +1,6 @@
 package com.ydttech;
 
 import com.ydttech.core.ReaderDev;
-import com.ydttech.util.LogDb;
 import com.ydttech.vo.RRMConfig;
 import org.dom4j.Document;
 import org.dom4j.Node;
