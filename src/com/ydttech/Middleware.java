@@ -48,10 +48,6 @@ public class Middleware {
 
     private static AtomicBoolean started = new AtomicBoolean(false);
 
-    private boolean keepRunning = false;
-
-    public List<Thread> deviceList = new ArrayList<Thread>();
-
     public boolean init() {
 
         if (readCfg() == 0)
