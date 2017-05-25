@@ -32,7 +32,6 @@ public class Middleware {
     String arriveURL, departureURL, alarmURL;
 
     private List<RRMConfig> rrmConfigList = new ArrayList<RRMConfig>();
-    private List<ReaderDev> readerList = new ArrayList<ReaderDev>();
 
     private String dbURL, purgeDay;
 
