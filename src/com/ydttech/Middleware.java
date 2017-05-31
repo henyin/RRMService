@@ -154,9 +154,11 @@ public class Middleware {
                         rrmConfig.setInvokeType(invokeNode.valueOf("@type"));
                         if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_BARRIER)) {
                             rrmConfig.setEntryDI(invokeNode.valueOf("@entryDI"));
+                            rrmConfig.setEntryPort(invokeNode.valueOf("@entryPort"));
                         } else if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_WEIGH)) {
                             rrmConfig.setEntry1DO(invokeNode.valueOf("@entry1DO"));
                             rrmConfig.setEntry2DO(invokeNode.valueOf("@entry2DO"));
+                            rrmConfig.setEntryPort(invokeNode.valueOf("@entryPort"));
                         }
                     } else {
                         rrmConfig.setInvokeType(InvokeType.INVOKE_TYPE_NORMAL);

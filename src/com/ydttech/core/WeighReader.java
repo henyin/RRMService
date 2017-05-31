@@ -19,7 +19,6 @@ import com.ydttech.vo.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.NetworkInterface;
@@ -30,15 +29,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static java.lang.Thread.sleep;
-import static java.lang.Thread.yield;
-
 /**
  * Created by Ean.Chung on 2016/10/12.
  */
-public class BarrierReader implements Runnable {
+public class WeighReader implements Runnable {
 
-    private static Logger logger = LoggerFactory.getLogger("BarrierReader");
+    private static Logger logger = LoggerFactory.getLogger("WeighReader");
 
     private  EventDataAnalyst eventDataAnalyst;
 
@@ -72,33 +68,40 @@ public class BarrierReader implements Runnable {
     private int currDayOfYear  = Calendar.getInstance().get(Calendar.DAY_OF_YEAR);
 
     private boolean isActiveReader = false;
-    private boolean isSuspendReader = false;
-    private boolean isEntrySignal = false;
+    private boolean isSuspendReader = true;
 
-    private ModbusUtil barrierModbus;
-    String ioCtrlId = "Barrier Controller";
+    private boolean isEntry1ON = false;
+    private boolean isEntry2ON = false;
+
+    private ModbusUtil weighModbus;
+    String ioCtrlId = "Weigh Controller";
     String ioCtrlIp = "localhost";
     private CoilsEventListener coilsEventListener = new CoilsEventListener() {
         @Override
         public void DIChangeEvent(DICoilsMessage diCoilsMessage) {
-            if (diCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntryDI())) == true) {
-                isEntrySignal = true;
-            }
-
-            if (diCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntryDI())) == false) {
-                isEntrySignal = false;
-            }
-
-            logger.info("reader:{} isEntrySignal:{}", rrmConfig.getReaderName(), isEntrySignal);
+//            if (diCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntryDI())) == true) {
+//                isActiveReader = true;
+//            }
+//
+//            if (diCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntryDI())) == false) {
+//                isSuspendReader = true;
+//            }
         }
 
         @Override
         public void DOChangeEvent(DOCoilsMessage doCoilsMessage) {
+            if (doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry1DO())) == true) {
+                isEntry1ON = true;
+            }
+
+            if (doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry2DO())) == true) {
+                isEntry2ON = true;
+            }
 //            closeBarrierModbus();
         }
     };
 
-    public BarrierReader(final RRMConfig rrmConfig) {
+    public WeighReader(final RRMConfig rrmConfig) {
         this.rrmConfig = rrmConfig;
         deviceName = rrmConfig.getReaderName();
         alarmURL = rrmConfig.getAlarmURL();
@@ -137,14 +140,14 @@ public class BarrierReader implements Runnable {
 
     }
 
-    public boolean openBarrierModbus() {
+    public boolean openWeighModbus() {
 
         boolean retCode = false;
 
-        barrierModbus = new ModbusUtil(ioCtrlId, ioCtrlIp, 8, 8);
-        barrierModbus.setEventTimer(1000);
+        weighModbus = new ModbusUtil(ioCtrlId, ioCtrlIp, 8, 8);
+        weighModbus.setEventTimer(1000);
 
-        if (!barrierModbus.open()) {
+        if (!weighModbus.open()) {
             logger.error("modbus slave:{} connection to {} is failure!", ioCtrlId, ioCtrlIp);
             return retCode;
 
@@ -152,9 +155,9 @@ public class BarrierReader implements Runnable {
             logger.info("modbus slave:{} connection to {} is successful!", ioCtrlId, ioCtrlIp);
         }
 
-        if (barrierModbus.registerEvent(coilsEventListener)) {
+        if (weighModbus.registerEvent(coilsEventListener)) {
             logger.info("register IOController:{} event is successful!", ioCtrlId);
-            barrierModbus.activeEvent();
+            weighModbus.activeEvent();
             retCode = true;
         } else {
             logger.error("register IOController:{} event is failure!", ioCtrlId);
@@ -163,18 +166,18 @@ public class BarrierReader implements Runnable {
         return retCode;
     }
 
-    public boolean closeBarrierModbus() {
+    public boolean closeWeighModbus() {
 
         boolean retCode = false;
 
-        if (barrierModbus.standbyEvent()) {
+        if (weighModbus.standbyEvent()) {
             logger.info("standby IOController:{} event is successful!", ioCtrlId);
             retCode = true;
         } else {
             logger.error("standby IOController:{} event is failure!", ioCtrlId);
         }
 
-        barrierModbus.close();
+        weighModbus.close();
 
         return retCode;
 
@@ -287,9 +290,9 @@ public class BarrierReader implements Runnable {
 
 //        readerClient.setEventListerner(eventObj);
 
-//        readerClient.use(Command.READER_EVENT_REG)
-//                .with(EventType.EVENT_ERROR)
-//                .run();
+        readerClient.use(Command.READER_EVENT_REG)
+                .with(EventType.EVENT_ERROR)
+                .run();
 
         readerClient.use(Command.READER_EVENT_REG)
                 .with(EventType.EVENT_TAG_REPORT)
@@ -433,35 +436,67 @@ public class BarrierReader implements Runnable {
     @Override
     public void run() {
 
-        openBarrierModbus();
+        openWeighModbus();
 
-        if (!(connect(connBrokenTimeoutLimit) == InvokeError.OK)) {
-            logger.error("reader:{} connecting to {} is failure!", rrmConfig.getReaderName(), rrmConfig.getIpAddr());
-        }
-
-        if (login() != InvokeError.OK) {
-            logger.error("reader:{} logging is failure!", rrmConfig.getReaderName());
-        }
-
-        if (standby() != InvokeError.OK) {
-            logger.error("reader:{} standby event mode is failure!", rrmConfig.getReaderName());
-        }
-
-        if (setAntMux(rrmConfig.getEntryPort()) != InvokeError.OK) {
-            logger.error("reader:{} set antenna mux:{} is failure", rrmConfig.getReaderName(), rrmConfig.getEntryPort());
-        }
-
-        if (setEventDataFmt() != InvokeError.OK) {
-            logger.info("reader:{} set event data format is failure", rrmConfig.getReaderName());
-        }
-
-        if (activity() != InvokeError.OK) {
-            logger.info("reader:{} active into event mode is failure!", rrmConfig.getReaderName());
-        }
+        isActiveReader = true;
 
         while(true) {
 
             try {
+                if (isActiveReader) {
+                    if (!(connect(connBrokenTimeoutLimit) == InvokeError.OK)) {
+                        logger.error("reader:{} connecting to {} is failure!", rrmConfig.getReaderName(), rrmConfig.getIpAddr());
+                        continue;
+                    }
+
+                    if (login() != InvokeError.OK) {
+                        logger.error("reader:{} logging is failure!", rrmConfig.getReaderName());
+                        continue;
+                    }
+
+                    if (standby() != InvokeError.OK) {
+                        logger.error("reader:{} standby event mode is failure!", rrmConfig.getReaderName());
+                        continue;
+                    }
+
+                    if (setAntMux(rrmConfig.getEntryPort()) != InvokeError.OK) {
+                        logger.error("reader:{} set antenna mux:{} is failure", rrmConfig.getReaderName(), rrmConfig.getEntryPort());
+                        continue;
+                    }
+
+                    if (setEventDataFmt() != InvokeError.OK) {
+                        logger.info("reader:{} set event data format is failure", rrmConfig.getReaderName());
+                        continue;
+                    }
+
+                    if (activity() != InvokeError.OK) {
+                        logger.info("reader:{} active into event mode is failure!", rrmConfig.getReaderName());
+                        continue;
+                    }
+
+                    logger.info("reader:{} is activated into event mode successfully!", rrmConfig.getReaderName());
+                    isActiveReader = false;
+                } else {
+                    if (isSuspendReader) {
+                        if (!(connect(connBrokenTimeoutLimit) == InvokeError.OK)) {
+                            logger.error("reader:{} connecting to {} is failure!", rrmConfig.getReaderName(), rrmConfig.getIpAddr());
+                            continue;
+                        }
+
+                        if (login() != InvokeError.OK) {
+                            logger.error("reader:{} logging is failure!", rrmConfig.getReaderName());
+                            continue;
+                        }
+
+                        if (standby() != InvokeError.OK) {
+                            logger.error("reader:{} standby event mode is failure!", rrmConfig.getReaderName());
+                            continue;
+                        }
+
+                        logger.info("reader:{} event mode is suspended successfully!", rrmConfig.getReaderName());
+                        isSuspendReader = false;
+                    }
+                }
 
                 if (!isConnected()) {
                     addCurrConnBrokenTimes(1);
@@ -491,34 +526,9 @@ public class BarrierReader implements Runnable {
 
                         logDb.addAlarmEvent(alarmEventData);
                     }
-
-                    if (!(connect(connBrokenTimeoutLimit) == InvokeError.OK)) {
-                        logger.error("reader:{} connecting to {} is failure!", rrmConfig.getReaderName(), rrmConfig.getIpAddr());
-                        continue;
-                    }
-
-                    if (login() != InvokeError.OK) {
-                        logger.error("reader:{} logging is failure!", rrmConfig.getReaderName());
-                        continue;
-                    }
-
-                    if (standby() != InvokeError.OK) {
-                        logger.error("reader:{} standby event mode is failure!", rrmConfig.getReaderName());
-                        continue;
-                    }
-
-                    if (setAntMux(rrmConfig.getEntryPort()) != InvokeError.OK) {
-                        logger.error("reader:{} set antenna mux:{} is failure", rrmConfig.getReaderName(), rrmConfig.getEntryPort());
-                        continue;
-                    }
-
-                    if (setEventDataFmt() != InvokeError.OK) {
-                        logger.info("reader:{} set event data format is failure", rrmConfig.getReaderName());
-                        continue;
-                    }
-
+                    connect(connBrokenTimeoutLimit);
                 } else {
-                    logger.info("reader:{} isEntrySignal:{}", rrmConfig.getReaderName(), isEntrySignal);
+                    logger.info("reader:{} op mode:{} isActiveReader:{} isSuspendReader:{}", rrmConfig.getReaderName(), getOPMode(), isActiveReader, isSuspendReader);
                 }
                 Thread.sleep(connBrokenTimeoutLimit);
             } catch (Exception e) {
@@ -531,8 +541,8 @@ public class BarrierReader implements Runnable {
     class SelfCheckJob extends TimerTask  {
 
         private void checkIOCtrl() {
-            if (!barrierModbus.isAlive())
-                openBarrierModbus();
+            if (!weighModbus.isAlive())
+                openWeighModbus();
         }
 
         private void checkTemperature() {
@@ -625,16 +635,16 @@ public class BarrierReader implements Runnable {
                 checkIOCtrl();
 
                 if (isConnected()) {
-//                    if (getCurrConnBrokenTimes() >= 2) {
-//                        setCurrConnBrokenTimes(0);
-//                        setRebootFlag(true);
-//                        logger.info("Reader:{} reset network flag:{} next time will be reset!", getDeviceName(), isRebootFlag());
-//                    }
+                    if (getCurrConnBrokenTimes() >= 2) {
+                        setCurrConnBrokenTimes(0);
+                        setRebootFlag(true);
+                        logger.info("Reader:{} reset network flag:{} next time will be reset!", getDeviceName(), isRebootFlag());
+                    }
 
                     if (currDataMap.isEmpty()) {
                         checkTemperature();
                         purgeLogDB();
-                        getOperatingMode();
+//                        getOperatingMode();
                         System.gc();
                     } else
                         logger.info("Reader:{} routine check process is suspend while tag data is exist! amount of data:{}", getDeviceName(), currDataMap.size());
@@ -692,11 +702,6 @@ public class BarrierReader implements Runnable {
     class EventObj implements IEventDataListener {
         @Override
         public void EventFound(Object sender, EventData eventData) {
-
-            if (isEntrySignal == false) {
-                logger.info("reader:{} entry signal is off, drop tag event:{}", getDeviceName(), eventData.toString());
-                return;
-            }
 
             if (eventData.getType() == EventType.EVENT_TAG_REPORT &&
                     eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) != null) {
@@ -779,7 +784,7 @@ public class BarrierReader implements Runnable {
 
                         new Thread(new PostAlarmData(rrmConfig.getAlarmURL(), alarmEventData)).start();
                     } else
-                        logger.info("Reader:{} Unknown error!", getDeviceName());
+                        logger.info("reader:{} Unknown error!", getDeviceName());
                 } else {
                     logger.info("Error event is raised and cause content is null!");
                 }
