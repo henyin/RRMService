@@ -25,6 +25,52 @@ public class RRMConfig {
 
     String departureTimeout;
 
+    String invokeType;
+    String entryDI;
+    String entryPort;
+    String entry1DO;
+    String entry2DO;
+
+    public String getEntryDI() {
+        return entryDI;
+    }
+
+    public void setEntryDI(String entryDI) {
+        this.entryDI = entryDI;
+    }
+
+    public String getEntryPort() {
+        return entryPort;
+    }
+
+    public void setEntryPort(String entryPort) {
+        this.entryPort = entryPort;
+    }
+
+    public String getEntry1DO() {
+        return entry1DO;
+    }
+
+    public void setEntry1DO(String entry1DO) {
+        this.entry1DO = entry1DO;
+    }
+
+    public String getEntry2DO() {
+        return entry2DO;
+    }
+
+    public void setEntry2DO(String entry2DO) {
+        this.entry2DO = entry2DO;
+    }
+
+    public String getInvokeType() {
+        return invokeType;
+    }
+
+    public void setInvokeType(String invokeType) {
+        this.invokeType = invokeType;
+    }
+
     private List tagPatternList = new ArrayList<String>();
 
     private final String DEPARTURE_TIMEOUT_MILLISECONDS = "1000";
@@ -163,6 +209,7 @@ public class RRMConfig {
                 ", connBrokenTimeoutLimit='" + connBrokenTimeoutLimit + '\'' +
                 ", connBrokenTimesLimit='" + connBrokenTimesLimit + '\'' +
                 ", departureTimeout='" + departureTimeout + '\'' +
+                ", invokeType='" + invokeType + '\'' +
                 ", tagPatternList=" + tagPatternList +
                 '}';
     }

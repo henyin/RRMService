@@ -16,7 +16,7 @@
     <EventPostURL>
         <!--<ArriveEventPostURL>http://192.168.1.95:8080/</ArriveEventPostURL>-->
         <!--<DepartureEventPostURL>http://192.168.1.95:8080/</DepartureEventPostURL>-->
-        <AlarmEventPostURL></AlarmEventPostURL>
+        <!--<AlarmEventPostURL>http://192.168.1.95:8080/</AlarmEventPostURL>-->
         <!--<ArriveEventPostURL>http://vmp.duit.com.cn/Middleware/arrive</ArriveEventPostURL>-->
         <!--<DepartureEventPostURL>http://vmp.duit.com.cn/Middleware/departure</DepartureEventPostURL>-->
         <!--<AlarmEventPostURL>http://vmp.duit.com.cn/Middleware/alarm</AlarmEventPostURL>-->
@@ -27,9 +27,19 @@
     <!-- AntennaPort id="1" power="2200" 設定天線1 功率為22dbm 空白表示不啟用-->
     <!-- TemperatureLimit min="-30" max="60" 設定告警溫度範圍介於攝氏-30度及攝氏60度之間 -->
     <!-- ConnBrokenLimit timeout="10000" times="3" 設定每隔10000 milliseconds(10 seconds) 偵測斷線，持續3次發出告警 -->
+    <!-- Invoke type = "normal":一般道路, "barrier":閘門入口, "weigh":地磅 三種啟動模式 -->
+    <!-- ioCtrlId = "GPIO 識別id" ioCtrlIp = "GPIO ipaddress" -->
+    <!--不同的invoke type 須設定必要參數如下-->
+    <!--barrier:   entryDI="DI觸發編號" entryPort="指定觸發之antenna port"-->
+    <!--weigh: entry1DO="A磅觸發DO編號" entry1Port="A磅指定觸發之antenna port"-->
+           <!--entry2DO="B磅觸發DO編號" entry2Port="B磅指定觸發之antenna port"-->
+
+
+    <Invoke type="barrier" ioCtrlId="barrier" ioCtrlIp="localhost" entryDI="0" entryPort="1"/>
 
     <ReaderConfig>
         <Reader name="readerYDT3" ip="192.168.1.156" departureTimeout="10000">
+            <Invoke type="barrier" ioCtrlId="barrier" ioCtrlIp="localhost" entryDI="0" entryPort="0"/>
             <AntennaPort id="1" power="2200"/>
             <AntennaPort id="2" power="" />
             <AntennaPort id="4" power="" />
@@ -38,6 +48,7 @@
             <ConnBrokenLimit timeout="10000" times="3" />
         </Reader>
         <!--<Reader name="readerYDT2" ip="192.168.1.156" departureTimeout="10000">-->
+            <!--<Invoke type="2" ioCtrlId="weigh" ioCtrlIp="localhost" entry1DO="0" entry1Port="1 2 " entry2DO="1" entry2Port="3 4 "/>-->
             <!--<AntennaPort id="1" power="2200" />-->
             <!--<AntennaPort id="2" power="" />-->
             <!--<AntennaPort id="3" power="" />-->

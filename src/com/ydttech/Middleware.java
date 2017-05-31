@@ -1,6 +1,8 @@
 package com.ydttech;
 
+import com.ydttech.core.BarrierReader;
 import com.ydttech.core.ReaderDev;
+import com.ydttech.vo.InvokeType;
 import com.ydttech.vo.RRMConfig;
 import org.dom4j.Document;
 import org.dom4j.Node;
@@ -60,7 +62,14 @@ public class Middleware {
 
         try {
             for (RRMConfig rrmConfig : rrmConfigList) {
-                new Thread(new ReaderDev((rrmConfig))).start();
+                if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_NORMAL))
+                    new Thread(new ReaderDev((rrmConfig))).start();
+                else if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_BARRIER))
+                    new Thread(new BarrierReader((rrmConfig))).start();
+                else if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_WEIGH))
+                    new Thread(new ReaderDev((rrmConfig))).start();
+                else
+                    new Thread(new ReaderDev((rrmConfig))).start();
             }
 
         } catch (Exception e) {
@@ -139,6 +148,20 @@ public class Middleware {
                     rrmConfig.setReaderName(node.valueOf("@name"));
                     rrmConfig.setIpAddr(node.valueOf("@ip"));
                     rrmConfig.setDepartureTimeout(node.valueOf("@departureTimeout"));
+
+                    Node invokeNode = node.selectSingleNode("Invoke");
+                    if (invokeNode != null) {
+                        rrmConfig.setInvokeType(invokeNode.valueOf("@type"));
+                        if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_BARRIER)) {
+                            rrmConfig.setEntryDI(invokeNode.valueOf("@entryDI"));
+                        } else if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_WEIGH)) {
+                            rrmConfig.setEntry1DO(invokeNode.valueOf("@entry1DO"));
+                            rrmConfig.setEntry2DO(invokeNode.valueOf("@entry2DO"));
+                        }
+                    } else {
+                        rrmConfig.setInvokeType(InvokeType.INVOKE_TYPE_NORMAL);
+                    }
+
 
                     List<Node> portNodes = node.selectNodes("AntennaPort");
 

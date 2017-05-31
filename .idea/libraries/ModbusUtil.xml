@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="ModbusUtil">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../ModbusUtil/out/artifacts/ModbusUtil_jar/ModbusUtil.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
