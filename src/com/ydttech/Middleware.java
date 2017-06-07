@@ -2,6 +2,7 @@ package com.ydttech;
 
 import com.ydttech.core.BarrierReader;
 import com.ydttech.core.ReaderDev;
+import com.ydttech.core.WeighReader;
 import com.ydttech.vo.InvokeType;
 import com.ydttech.vo.RRMConfig;
 import org.dom4j.Document;
@@ -67,7 +68,7 @@ public class Middleware {
                 else if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_BARRIER))
                     new Thread(new BarrierReader((rrmConfig))).start();
                 else if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_WEIGH))
-                    new Thread(new ReaderDev((rrmConfig))).start();
+                    new Thread(new WeighReader((rrmConfig))).start();
                 else
                     new Thread(new ReaderDev((rrmConfig))).start();
             }
@@ -152,13 +153,19 @@ public class Middleware {
                     Node invokeNode = node.selectSingleNode("Invoke");
                     if (invokeNode != null) {
                         rrmConfig.setInvokeType(invokeNode.valueOf("@type"));
+                        rrmConfig.setIoCtrlIp(invokeNode.valueOf("@ioCtrlIp"));
+                        rrmConfig.setIoCtrlId(invokeNode.valueOf("@ioCtrlId"));
                         if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_BARRIER)) {
                             rrmConfig.setEntryDI(invokeNode.valueOf("@entryDI"));
                             rrmConfig.setEntryPort(invokeNode.valueOf("@entryPort"));
                         } else if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_WEIGH)) {
+                            rrmConfig.setEntryDI("0");
+                            rrmConfig.setEntryPort("0");
                             rrmConfig.setEntry1DO(invokeNode.valueOf("@entry1DO"));
                             rrmConfig.setEntry2DO(invokeNode.valueOf("@entry2DO"));
-                            rrmConfig.setEntryPort(invokeNode.valueOf("@entryPort"));
+                            rrmConfig.setEntry1Port(invokeNode.valueOf("@entry1Port"));
+                            rrmConfig.setEntry2Port(invokeNode.valueOf("@entry2Port"));
+                            rrmConfig.setEntryPort(rrmConfig.getEntry1Port() + " " + rrmConfig.getEntry2Port());
                         }
                     } else {
                         rrmConfig.setInvokeType(InvokeType.INVOKE_TYPE_NORMAL);

@@ -85,8 +85,9 @@ public class EventDataAnalyst implements Runnable {
                             postDepart.setPriority(Thread.MAX_PRIORITY);
                             postDepart.start();
 
-                            logger.info("Reader:{} epc:{} event_name:{} time:{} timeout={}",
-                                    normalEventData.getDevice_name(), normalEventData.getEpc(), normalEventData.getEvent_name(), normalEventData.getTime(),
+                            logger.info("Reader:{} antenna:{} epc:{} event_name:{} time:{} timeout={}",
+                                    normalEventData.getDevice_name(), normalEventData.getAntenna(),
+                                    normalEventData.getEpc(), normalEventData.getEvent_name(), normalEventData.getTime(),
                                     DEPARTURE_TIMEOUT_MILLISECONDS);
 
                             logDb.addNormalEvent(normalEventData);

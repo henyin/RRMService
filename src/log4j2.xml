@@ -2,12 +2,12 @@
 <Configuration status="warn">
 
     <properties>
-    <property name="name">app</property>
+    <property name="name">service</property>
     <property name="pattern">[%d{yyyy/MM/dd HH:mm:ss.SSS}][%p][%c-%t-%L] %m%n</property>
     </properties>
 
     <Appenders>
-        <File name="file" fileName="../logs/app.log">
+        <File name="file" fileName="../logs/${name}.log">
             <PatternLayout>
                 <Pattern>${pattern}</Pattern>
             </PatternLayout>
@@ -15,8 +15,8 @@
         <Console name="STDOUT" target="SYSTEM_OUT">
             <PatternLayout pattern="${pattern}"/>
         </Console>
-        <RollingFile name="RollingFile" fileName="../logs/daily.log"
-                     filePattern="../logs/$${date:yyyy-MM}/daily-%d{yyyy-MM-dd}-%i.log.gz">
+        <RollingFile name="RollingFile" fileName="../logs/${name}.log"
+                     filePattern="../logs/$${date:yyyy-MM}/${name}-%d{yyyy-MM-dd}-%i.log.gz">
             <PatternLayout>
                 <Pattern>${pattern}</Pattern>
             </PatternLayout>
@@ -28,7 +28,7 @@
 
     <Loggers>
         <Root level="trace">
-            <!--<AppenderRef ref="file" level="INFO"/>-->
+            <AppenderRef ref="file" level="INFO"/>
             <AppenderRef ref="STDOUT" level="INFO"/>
             <AppenderRef ref="RollingFile" level="INFO"/>
         </Root>

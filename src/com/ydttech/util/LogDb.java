@@ -5,6 +5,7 @@ import com.ydttech.vo.NormalEventData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.sql.*;
@@ -57,7 +58,18 @@ public class LogDb {
     }
 
     public void init() {
+
+        String filePath = dbURL.split(":")[2];
+        String folderPath = filePath.substring(0, filePath.lastIndexOf("/"));
+
+        if (!new File(folderPath).exists()) {
+            new File(folderPath).mkdirs();
+            logger.info("Create sqlite database folder:{}", folderPath);
+        } else
+            logger.info("sqlite database folder:{} exist!", folderPath);
+
         logger.info("Start initial SQLite db file in dbURL:{}", dbURL);
+
         getConnRes();
 
         doSql(createNormal);

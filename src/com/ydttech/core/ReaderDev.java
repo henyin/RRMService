@@ -101,7 +101,7 @@ public class ReaderDev implements Runnable {
             logger.error("reader name:{} msg:{}", rrmConfig.getReaderName(), error.toString());
         }
 
-        readerClient.setReport(getDeviceName(), "../logs", Report.Level.EVENT, Report.Level.ERROR);
+        readerClient.setReport(getDeviceName(), "../logs/sdk", Report.Level.EVENT, Report.Level.ERROR);
 
     }
 
@@ -602,8 +602,10 @@ public class ReaderDev implements Runnable {
             }
 
             if (!packedEventData.getEvent_name().equalsIgnoreCase(EventName.REPORT)) {
-                logger.info("Reader:{} epc:{} event_name:{} time:{}",
-                        packedEventData.getDevice_name(), packedEventData.getEpc(), packedEventData.getEvent_name(), packedEventData.getTime());
+                logger.info("Reader:{} antenna:{} epc:{} event_name:{} time:{}",
+                        packedEventData.getDevice_name(),
+                        packedEventData.getAntenna(), packedEventData.getEpc(),
+                        packedEventData.getEvent_name(), packedEventData.getTime());
 
                 logDb.addNormalEvent(packedEventData);
             }

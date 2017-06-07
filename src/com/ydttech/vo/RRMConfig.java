@@ -28,8 +28,30 @@ public class RRMConfig {
     String invokeType;
     String entryDI;
     String entryPort;
+
     String entry1DO;
     String entry2DO;
+    String entry1Port;
+    String entry2Port;
+
+    String ioCtrlId;
+    String ioCtrlIp;
+
+    public String getIoCtrlId() {
+        return ioCtrlId;
+    }
+
+    public void setIoCtrlId(String ioCtrlId) {
+        this.ioCtrlId = ioCtrlId;
+    }
+
+    public String getIoCtrlIp() {
+        return ioCtrlIp;
+    }
+
+    public void setIoCtrlIp(String ioCtrlIp) {
+        this.ioCtrlIp = ioCtrlIp;
+    }
 
     public String getEntryDI() {
         return entryDI;
@@ -61,6 +83,22 @@ public class RRMConfig {
 
     public void setEntry2DO(String entry2DO) {
         this.entry2DO = entry2DO;
+    }
+
+    public String getEntry1Port() {
+        return entry1Port;
+    }
+
+    public void setEntry1Port(String entry1Port) {
+        this.entry1Port = entry1Port;
+    }
+
+    public String getEntry2Port() {
+        return entry2Port;
+    }
+
+    public void setEntry2Port(String entry2Port) {
+        this.entry2Port = entry2Port;
     }
 
     public String getInvokeType() {
@@ -210,6 +248,14 @@ public class RRMConfig {
                 ", connBrokenTimesLimit='" + connBrokenTimesLimit + '\'' +
                 ", departureTimeout='" + departureTimeout + '\'' +
                 ", invokeType='" + invokeType + '\'' +
+                ", entryDI='" + entryDI + '\'' +
+                ", entryPort='" + entryPort + '\'' +
+                ", entry1DO='" + entry1DO + '\'' +
+                ", entry2DO='" + entry2DO + '\'' +
+                ", entry1Port='" + entry1Port + '\'' +
+                ", entry2Port='" + entry2Port + '\'' +
+                ", ioCtrlId='" + ioCtrlId + '\'' +
+                ", ioCtrlIp='" + ioCtrlIp + '\'' +
                 ", tagPatternList=" + tagPatternList +
                 '}';
     }

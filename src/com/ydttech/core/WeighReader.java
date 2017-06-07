@@ -70,8 +70,11 @@ public class WeighReader implements Runnable {
     private boolean isActiveReader = false;
     private boolean isSuspendReader = true;
 
-    private boolean isEntry1ON = false;
-    private boolean isEntry2ON = false;
+    private boolean isEntry1Signal = false;
+    private boolean isEntry2Signal = false;
+    private String entry1Antenna = "";
+    private String entry2Antenna = "";
+    private StringBuilder enableAntenna = new StringBuilder();
 
     private ModbusUtil weighModbus;
     String ioCtrlId = "Weigh Controller";
@@ -90,14 +93,35 @@ public class WeighReader implements Runnable {
 
         @Override
         public void DOChangeEvent(DOCoilsMessage doCoilsMessage) {
-            if (doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry1DO())) == true) {
-                isEntry1ON = true;
+            if (isEntry1Signal == false && doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry1DO())) == true) {
+                isEntry1Signal = true;
+                logger.info("reader:{} isEntry1Signal:{} isEntry2Signal:{} enableAntenna:{}",
+                        rrmConfig.getReaderName(), isEntry1Signal, isEntry2Signal, rrmConfig.getEntryPort());
+                return;
             }
 
-            if (doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry2DO())) == true) {
-                isEntry2ON = true;
+            if (isEntry2Signal == false && doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry2DO())) == true) {
+                isEntry2Signal = true;
+                logger.info("reader:{} isEntry1Signal:{} isEntry2Signal:{} enableAntenna:{}",
+                        rrmConfig.getReaderName(), isEntry1Signal, isEntry2Signal, rrmConfig.getEntryPort());
+                return;
             }
-//            closeBarrierModbus();
+
+            if (doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry1DO())) == false && isEntry1Signal == true) {
+                isEntry1Signal = false;
+                logger.info("reader:{} isEntry1Signal:{} isEntry2Signal:{} enableAntenna:{}",
+                        rrmConfig.getReaderName(), isEntry1Signal, isEntry2Signal, rrmConfig.getEntryPort());
+                return;
+            }
+
+            if (doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry2DO())) == false && isEntry2Signal == true) {
+                isEntry2Signal = false;
+                logger.info("reader:{} isEntry1Signal:{} isEntry2Signal:{} enableAntenna:{}",
+                        rrmConfig.getReaderName(), isEntry1Signal, isEntry2Signal, rrmConfig.getEntryPort());
+                return;
+            }
+
+
         }
     };
 
@@ -136,7 +160,7 @@ public class WeighReader implements Runnable {
             logger.error("reader name:{} msg:{}", rrmConfig.getReaderName(), error.toString());
         }
 
-        readerClient.setReport(getDeviceName(), "../logs", Report.Level.EVENT, Report.Level.ERROR);
+        readerClient.setReport(getDeviceName(), "../logs/sdk", Report.Level.EVENT, Report.Level.ERROR);
 
     }
 
@@ -144,8 +168,11 @@ public class WeighReader implements Runnable {
 
         boolean retCode = false;
 
-        weighModbus = new ModbusUtil(ioCtrlId, ioCtrlIp, 8, 8);
-        weighModbus.setEventTimer(1000);
+        ioCtrlId = rrmConfig.getIoCtrlId();
+        ioCtrlIp = rrmConfig.getIoCtrlIp();
+
+        weighModbus = new ModbusUtil(ioCtrlId, ioCtrlIp, 8, 8, true);
+        weighModbus.setEventTimer(100);
 
         if (!weighModbus.open()) {
             logger.error("modbus slave:{} connection to {} is failure!", ioCtrlId, ioCtrlIp);
@@ -274,6 +301,11 @@ public class WeighReader implements Runnable {
                 logger.info("Reader:{} Antenna:{} is disabled!",
                         getDeviceName(),
                         id);
+
+                readerClient.use(Command.ANTENNA_SET_POWER)
+                        .with("antenna", id)
+                        .with("power", "0")
+                        .run();
             }
         }
 
@@ -435,68 +467,39 @@ public class WeighReader implements Runnable {
 
     @Override
     public void run() {
-
         openWeighModbus();
 
-        isActiveReader = true;
+        if (!(connect(connBrokenTimeoutLimit) == InvokeError.OK)) {
+            logger.error("reader:{} connecting to {} is failure!", rrmConfig.getReaderName(), rrmConfig.getIpAddr());
+        }
+
+        if (login() != InvokeError.OK) {
+            logger.error("reader:{} logging is failure!", rrmConfig.getReaderName());
+        }
+
+        if (standby() != InvokeError.OK) {
+            logger.error("reader:{} standby event mode is failure!", rrmConfig.getReaderName());
+        }
+
+        if (setAntennaPort() != InvokeError.OK) {
+            logger.error("reader:{} set antenna port power is failure!", rrmConfig.getReaderName());
+        }
+
+        if (setAntMux(rrmConfig.getEntryPort()) != InvokeError.OK) {
+            logger.error("reader:{} set antenna mux:{} is failure", rrmConfig.getReaderName(), rrmConfig.getEntryPort());
+        }
+
+        if (setEventDataFmt() != InvokeError.OK) {
+            logger.info("reader:{} set event data format is failure", rrmConfig.getReaderName());
+        }
+
+        if (activity() != InvokeError.OK) {
+            logger.info("reader:{} active into event mode is failure!", rrmConfig.getReaderName());
+        }
 
         while(true) {
 
             try {
-                if (isActiveReader) {
-                    if (!(connect(connBrokenTimeoutLimit) == InvokeError.OK)) {
-                        logger.error("reader:{} connecting to {} is failure!", rrmConfig.getReaderName(), rrmConfig.getIpAddr());
-                        continue;
-                    }
-
-                    if (login() != InvokeError.OK) {
-                        logger.error("reader:{} logging is failure!", rrmConfig.getReaderName());
-                        continue;
-                    }
-
-                    if (standby() != InvokeError.OK) {
-                        logger.error("reader:{} standby event mode is failure!", rrmConfig.getReaderName());
-                        continue;
-                    }
-
-                    if (setAntMux(rrmConfig.getEntryPort()) != InvokeError.OK) {
-                        logger.error("reader:{} set antenna mux:{} is failure", rrmConfig.getReaderName(), rrmConfig.getEntryPort());
-                        continue;
-                    }
-
-                    if (setEventDataFmt() != InvokeError.OK) {
-                        logger.info("reader:{} set event data format is failure", rrmConfig.getReaderName());
-                        continue;
-                    }
-
-                    if (activity() != InvokeError.OK) {
-                        logger.info("reader:{} active into event mode is failure!", rrmConfig.getReaderName());
-                        continue;
-                    }
-
-                    logger.info("reader:{} is activated into event mode successfully!", rrmConfig.getReaderName());
-                    isActiveReader = false;
-                } else {
-                    if (isSuspendReader) {
-                        if (!(connect(connBrokenTimeoutLimit) == InvokeError.OK)) {
-                            logger.error("reader:{} connecting to {} is failure!", rrmConfig.getReaderName(), rrmConfig.getIpAddr());
-                            continue;
-                        }
-
-                        if (login() != InvokeError.OK) {
-                            logger.error("reader:{} logging is failure!", rrmConfig.getReaderName());
-                            continue;
-                        }
-
-                        if (standby() != InvokeError.OK) {
-                            logger.error("reader:{} standby event mode is failure!", rrmConfig.getReaderName());
-                            continue;
-                        }
-
-                        logger.info("reader:{} event mode is suspended successfully!", rrmConfig.getReaderName());
-                        isSuspendReader = false;
-                    }
-                }
 
                 if (!isConnected()) {
                     addCurrConnBrokenTimes(1);
@@ -526,9 +529,35 @@ public class WeighReader implements Runnable {
 
                         logDb.addAlarmEvent(alarmEventData);
                     }
-                    connect(connBrokenTimeoutLimit);
+
+                    if (!(connect(connBrokenTimeoutLimit) == InvokeError.OK)) {
+                        logger.error("reader:{} connecting to {} is failure!", rrmConfig.getReaderName(), rrmConfig.getIpAddr());
+                        Thread.sleep(connBrokenTimeoutLimit);
+                        continue;
+                    }
+
+                    if (login() != InvokeError.OK) {
+                        logger.error("reader:{} logging is failure!", rrmConfig.getReaderName());
+                        continue;
+                    }
+
+                    if (standby() != InvokeError.OK) {
+                        logger.error("reader:{} standby event mode is failure!", rrmConfig.getReaderName());
+                        continue;
+                    }
+
+                    if (setAntMux(rrmConfig.getEntryPort()) != InvokeError.OK) {
+                        logger.error("reader:{} set antenna mux:{} is failure", rrmConfig.getReaderName(), rrmConfig.getEntryPort());
+                        continue;
+                    }
+
+                    if (setEventDataFmt() != InvokeError.OK) {
+                        logger.info("reader:{} set event data format is failure", rrmConfig.getReaderName());
+                        continue;
+                    }
+
                 } else {
-                    logger.info("reader:{} op mode:{} isActiveReader:{} isSuspendReader:{}", rrmConfig.getReaderName(), getOPMode(), isActiveReader, isSuspendReader);
+                    logger.info("reader:{} isEntry1Signal:{} isEntry2Signal:{}", rrmConfig.getReaderName(), isEntry1Signal, isEntry2Signal);
                 }
                 Thread.sleep(connBrokenTimeoutLimit);
             } catch (Exception e) {
@@ -635,16 +664,16 @@ public class WeighReader implements Runnable {
                 checkIOCtrl();
 
                 if (isConnected()) {
-                    if (getCurrConnBrokenTimes() >= 2) {
-                        setCurrConnBrokenTimes(0);
-                        setRebootFlag(true);
-                        logger.info("Reader:{} reset network flag:{} next time will be reset!", getDeviceName(), isRebootFlag());
-                    }
+//                    if (getCurrConnBrokenTimes() >= 2) {
+//                        setCurrConnBrokenTimes(0);
+//                        setRebootFlag(true);
+//                        logger.info("Reader:{} reset network flag:{} next time will be reset!", getDeviceName(), isRebootFlag());
+//                    }
 
                     if (currDataMap.isEmpty()) {
                         checkTemperature();
                         purgeLogDB();
-//                        getOperatingMode();
+                        getOperatingMode();
                         System.gc();
                     } else
                         logger.info("Reader:{} routine check process is suspend while tag data is exist! amount of data:{}", getDeviceName(), currDataMap.size());
@@ -688,8 +717,10 @@ public class WeighReader implements Runnable {
             }
 
             if (!packedEventData.getEvent_name().equalsIgnoreCase(EventName.REPORT)) {
-                logger.info("Reader:{} epc:{} event_name:{} time:{}",
-                        packedEventData.getDevice_name(), packedEventData.getEpc(), packedEventData.getEvent_name(), packedEventData.getTime());
+                logger.info("Reader:{} antenna:{} epc:{} event_name:{} time:{}",
+                        packedEventData.getDevice_name(),
+                        packedEventData.getAntenna(), packedEventData.getEpc(),
+                        packedEventData.getEvent_name(), packedEventData.getTime());
 
                 logDb.addNormalEvent(packedEventData);
             }
@@ -702,6 +733,34 @@ public class WeighReader implements Runnable {
     class EventObj implements IEventDataListener {
         @Override
         public void EventFound(Object sender, EventData eventData) {
+
+            if (!isEntry1Signal && !isEntry2Signal) {
+//                logger.info("reader:{} entry signal is off, drop tag event:{}", getDeviceName(), eventData.toString());
+                return;
+            } else {
+
+                String antennaData = eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_ANTENNA);
+                if (antennaData == null)
+                    return;
+
+                if (rrmConfig.getEntry1Port().indexOf(antennaData) != -1) {
+                    if (!isEntry1Signal)
+                        return;
+                    else
+                        isEntry1Signal = false;
+//                        weighModbus.setDOValue(Integer.parseInt(rrmConfig.getEntry1DO()), false);
+                }
+
+                if (rrmConfig.getEntry2Port().indexOf(antennaData) != -1) {
+                    if (!isEntry2Signal)
+                        return;
+                    else
+                        isEntry2Signal = false;
+//                        weighModbus.setDOValue(Integer.parseInt(rrmConfig.getEntry2DO()), false);
+                }
+            }
+
+
 
             if (eventData.getType() == EventType.EVENT_TAG_REPORT &&
                     eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) != null) {
@@ -741,8 +800,6 @@ public class WeighReader implements Runnable {
                         normalEventData.setpLatestTimeMillis(System.currentTimeMillis());
 
                         add(normalEventData);
-                        isActiveReader = false;
-                        isSuspendReader = true;
                     }
                 } else {
                     logger.info("Reader:{} Drop non-verified tag data! EPC:{}", getDeviceName(), epcData);

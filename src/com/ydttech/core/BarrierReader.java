@@ -133,7 +133,7 @@ public class BarrierReader implements Runnable {
             logger.error("reader name:{} msg:{}", rrmConfig.getReaderName(), error.toString());
         }
 
-        readerClient.setReport(getDeviceName(), "../logs", Report.Level.EVENT, Report.Level.ERROR);
+        readerClient.setReport(getDeviceName(), "../logs/sdk", Report.Level.EVENT, Report.Level.ERROR);
 
     }
 
@@ -141,8 +141,11 @@ public class BarrierReader implements Runnable {
 
         boolean retCode = false;
 
+        ioCtrlId = rrmConfig.getIoCtrlId();
+        ioCtrlIp = rrmConfig.getIoCtrlIp();
+
         barrierModbus = new ModbusUtil(ioCtrlId, ioCtrlIp, 8, 8);
-        barrierModbus.setEventTimer(1000);
+        barrierModbus.setEventTimer(100);
 
         if (!barrierModbus.open()) {
             logger.error("modbus slave:{} connection to {} is failure!", ioCtrlId, ioCtrlIp);
@@ -287,9 +290,9 @@ public class BarrierReader implements Runnable {
 
 //        readerClient.setEventListerner(eventObj);
 
-//        readerClient.use(Command.READER_EVENT_REG)
-//                .with(EventType.EVENT_ERROR)
-//                .run();
+        readerClient.use(Command.READER_EVENT_REG)
+                .with(EventType.EVENT_ERROR)
+                .run();
 
         readerClient.use(Command.READER_EVENT_REG)
                 .with(EventType.EVENT_TAG_REPORT)
@@ -447,6 +450,10 @@ public class BarrierReader implements Runnable {
             logger.error("reader:{} standby event mode is failure!", rrmConfig.getReaderName());
         }
 
+        if (setAntennaPort() != InvokeError.OK) {
+            logger.error("reader:{} set antenna port power is failure!", rrmConfig.getReaderName());
+        }
+
         if (setAntMux(rrmConfig.getEntryPort()) != InvokeError.OK) {
             logger.error("reader:{} set antenna mux:{} is failure", rrmConfig.getReaderName(), rrmConfig.getEntryPort());
         }
@@ -494,6 +501,7 @@ public class BarrierReader implements Runnable {
 
                     if (!(connect(connBrokenTimeoutLimit) == InvokeError.OK)) {
                         logger.error("reader:{} connecting to {} is failure!", rrmConfig.getReaderName(), rrmConfig.getIpAddr());
+                        Thread.sleep(connBrokenTimeoutLimit);
                         continue;
                     }
 
@@ -678,8 +686,10 @@ public class BarrierReader implements Runnable {
             }
 
             if (!packedEventData.getEvent_name().equalsIgnoreCase(EventName.REPORT)) {
-                logger.info("Reader:{} epc:{} event_name:{} time:{}",
-                        packedEventData.getDevice_name(), packedEventData.getEpc(), packedEventData.getEvent_name(), packedEventData.getTime());
+                logger.info("Reader:{} antenna:{} epc:{} event_name:{} time:{}",
+                        packedEventData.getDevice_name(),
+                        packedEventData.getAntenna(), packedEventData.getEpc(),
+                        packedEventData.getEvent_name(), packedEventData.getTime());
 
                 logDb.addNormalEvent(packedEventData);
             }
@@ -694,7 +704,7 @@ public class BarrierReader implements Runnable {
         public void EventFound(Object sender, EventData eventData) {
 
             if (isEntrySignal == false) {
-                logger.info("reader:{} entry signal is off, drop tag event:{}", getDeviceName(), eventData.toString());
+//                logger.info("reader:{} entry signal is off, drop tag event:{}", getDeviceName(), eventData.toString());
                 return;
             }
 
@@ -736,8 +746,6 @@ public class BarrierReader implements Runnable {
                         normalEventData.setpLatestTimeMillis(System.currentTimeMillis());
 
                         add(normalEventData);
-                        isActiveReader = false;
-                        isSuspendReader = true;
                     }
                 } else {
                     logger.info("Reader:{} Drop non-verified tag data! EPC:{}", getDeviceName(), epcData);
