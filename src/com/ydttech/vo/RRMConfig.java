@@ -37,6 +37,16 @@ public class RRMConfig {
     String ioCtrlId;
     String ioCtrlIp;
 
+    String readCount;
+
+    public String getReadCount() {
+        return readCount;
+    }
+
+    public void setReadCount(String readCount) {
+        this.readCount = readCount;
+    }
+
     public String getIoCtrlId() {
         return ioCtrlId;
     }
@@ -256,6 +266,7 @@ public class RRMConfig {
                 ", entry2Port='" + entry2Port + '\'' +
                 ", ioCtrlId='" + ioCtrlId + '\'' +
                 ", ioCtrlIp='" + ioCtrlIp + '\'' +
+                ", readCount='" + readCount + '\'' +
                 ", tagPatternList=" + tagPatternList +
                 '}';
     }

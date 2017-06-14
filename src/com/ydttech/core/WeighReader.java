@@ -286,19 +286,19 @@ public class WeighReader implements Runnable {
                 retCode = readerClient.getResult().error();
 
                 if (retCode == InvokeError.OK) {
-                    logger.info("Reader:{} Antenna:{} set Power:{} ok!",
+                    logger.info("reader:{} Antenna:{} set Power:{} ok!",
                             getDeviceName(),
                             id,
                             rrmConfig.getPower().get(id));
                 } else {
-                    logger.info("Reader:{} Antenna:{} set Power:{} failure!",
+                    logger.info("reader:{} Antenna:{} set Power:{} failure!",
                             getDeviceName(),
                             id,
                             rrmConfig.getPower().get(id));
                     break;
                 }
             } else {
-                logger.info("Reader:{} Antenna:{} is disabled!",
+                logger.info("reader:{} Antenna:{} is disabled!",
                         getDeviceName(),
                         id);
 
@@ -595,7 +595,7 @@ public class WeighReader implements Runnable {
                 logDb.addAlarmEvent(alarmEventData);
 
             }
-            logger.info("Reader:{} alive:{} temperature:{} ", getDeviceName(), connected, temperature);
+            logger.info("reader:{} alive:{} temperature:{} ", getDeviceName(), connected, temperature);
 
         }
 
@@ -631,7 +631,7 @@ public class WeighReader implements Runnable {
 
         private void getOperatingMode() {
             if (getOPMode() == 1) {
-                logger.info("Reader:{} is in active mode!", getDeviceName());
+                logger.info("reader:{} is in active mode!", getDeviceName());
             } else {
 
                 AlarmEventData alarmEventData = new AlarmEventData();
@@ -648,13 +648,23 @@ public class WeighReader implements Runnable {
 
                 logDb.addAlarmEvent(alarmEventData);
 
-                logger.info("Reader:{} is in standby mode while in connection state!", getDeviceName());
+                logger.info("reader:{} is in standby mode while in connection state!", getDeviceName());
                 if (activity() == InvokeError.OK) {
-                    logger.info("Restart Reader:{} in active mode successfully, event channel:{}!", getDeviceName(), readerClient.getEventChannel().getID());
+                    logger.info("Restart reader:{} in active mode successfully, event channel:{}!", getDeviceName(), readerClient.getEventChannel().getID());
                 } else {
-                    logger.info("Restart Reader:{} in active mode failure!", getDeviceName());
+                    logger.info("Restart reader:{} in active mode failure!", getDeviceName());
                 }
             }
+        }
+
+        private void checkAntenna() {
+            int retCode = 0;
+
+            InvokeResult invokeResult =  readerClient.use(Command.ANTENNA_DETECT)
+                    .run();
+
+            logger.info("reader:{} Get connected antenna ports:[{}]", getDeviceName(), invokeResult.retString());
+
         }
 
         @Override
@@ -674,15 +684,16 @@ public class WeighReader implements Runnable {
                         checkTemperature();
                         purgeLogDB();
                         getOperatingMode();
+//                        checkAntenna();
                         System.gc();
                     } else
-                        logger.info("Reader:{} routine check process is suspend while tag data is exist! amount of data:{}", getDeviceName(), currDataMap.size());
+                        logger.info("reader:{} routine check process is suspend while tag data is exist! amount of data:{}", getDeviceName(), currDataMap.size());
                 } else {
-                    logger.info("Reader:{} is not connected to RRM!", getDeviceName());
+                    logger.info("reader:{} is not connected to RRM!", getDeviceName());
                 }
             } catch (Exception e) {
 //                stopDevice();
-                logger.info("Reader:{} routine job is interrupted! msg:{}", getDeviceName(), e.getMessage());
+                logger.info("reader:{} routine job is interrupted! msg:{}", getDeviceName(), e.getMessage());
             }
         }
     }
@@ -712,12 +723,12 @@ public class WeighReader implements Runnable {
             } else if (currDataMap.get(tagKey).getEvent_name().equals(EventName.REPORT)) {
                 currDataMap.put(tagKey, packedEventData);
             } else {
-                logger.info("Unexpected Reader:{} epc:{} event_name:{}",
+                logger.info("Unexpected reader:{} epc:{} event_name:{}",
                         packedEventData.getDevice_name(), packedEventData.getEpc(), currDataMap.get(tagKey).getEvent_name());
             }
 
             if (!packedEventData.getEvent_name().equalsIgnoreCase(EventName.REPORT)) {
-                logger.info("Reader:{} antenna:{} epc:{} event_name:{} time:{}",
+                logger.info("reader:{} antenna:{} epc:{} event_name:{} time:{}",
                         packedEventData.getDevice_name(),
                         packedEventData.getAntenna(), packedEventData.getEpc(),
                         packedEventData.getEvent_name(), packedEventData.getTime());
@@ -733,6 +744,48 @@ public class WeighReader implements Runnable {
     class EventObj implements IEventDataListener {
         @Override
         public void EventFound(Object sender, EventData eventData) {
+
+            if (eventData.getType() == EventType.EVENT_ERROR) {
+
+                String cause = eventData.getParameter(EventType.PARAMS_ERROR.KEY_CAUSE);
+                logger.info("reader:{} Module Event is detecting:{}", getDeviceName(), eventData.toString());
+
+                AlarmEventData alarmEventData = new AlarmEventData();
+                event_fmt_time = dstSdf.format(new Date());
+
+                if (cause != null) {
+                    if (cause.equalsIgnoreCase(EventType.PARAMS_ERROR.VAL_CAUSE_ANTENNA)) {
+                        readerClient.use(Command.ANTENNA_DETECT).run();
+
+                        String antennaList = readerClient.getResult().retString();
+
+
+                        logger.info("reader:{} Antenna loss! alive antenna list:{}", getDeviceName(), antennaList);
+
+                        alarmEventData.setDevice_name(rrmConfig.getReaderName());
+                        alarmEventData.setEvent_name("alarm");
+                        alarmEventData.setAlarm_code("-1");
+                        alarmEventData.setAlarm_reason(eventData.toString());
+                        alarmEventData.setTime(event_fmt_time);
+
+                        new Thread(new PostAlarmData(rrmConfig.getAlarmURL(), alarmEventData)).start();
+
+                    } else if (cause.equalsIgnoreCase(EventType.PARAMS_ERROR.VAL_CAUSE_TEMPERATURE)) {
+                        logger.info("reader:{} Temperature is too high!", getDeviceName());
+
+                        alarmEventData.setDevice_name(rrmConfig.getReaderName());
+                        alarmEventData.setEvent_name("alarm");
+                        alarmEventData.setAlarm_code("-2");
+                        alarmEventData.setAlarm_reason("Temperature maybe dangerous!");
+                        alarmEventData.setTime(event_fmt_time);
+
+                        new Thread(new PostAlarmData(rrmConfig.getAlarmURL(), alarmEventData)).start();
+                    } else
+                        logger.info("reader:{} Unknown error!", getDeviceName());
+                } else {
+                    logger.info("Error event is raised and cause content is null!");
+                }
+            }
 
             if (!isEntry1Signal && !isEntry2Signal) {
 //                logger.info("reader:{} entry signal is off, drop tag event:{}", getDeviceName(), eventData.toString());
@@ -759,8 +812,6 @@ public class WeighReader implements Runnable {
 //                        weighModbus.setDOValue(Integer.parseInt(rrmConfig.getEntry2DO()), false);
                 }
             }
-
-
 
             if (eventData.getType() == EventType.EVENT_TAG_REPORT &&
                     eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) != null) {
@@ -789,7 +840,7 @@ public class WeighReader implements Runnable {
                         normalEventData.setEpc(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC));
 
                         if (eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID) == null) {
-                            logger.info("Reader:{} epc:{} and tid is null!", getDeviceName(), eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC));
+                            logger.info("reader:{} epc:{} and tid is null!", getDeviceName(), eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC));
                             normalEventData.setTid("");
                         } else
                             normalEventData.setTid(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID));
@@ -802,59 +853,18 @@ public class WeighReader implements Runnable {
                         add(normalEventData);
                     }
                 } else {
-                    logger.info("Reader:{} Drop non-verified tag data! EPC:{}", getDeviceName(), epcData);
+                    logger.info("reader:{} Drop non-verified tag data! EPC:{}", getDeviceName(), epcData);
                     return;
-                }
-            } else if (eventData.getType() == EventType.EVENT_ERROR) {
-
-                String cause = eventData.getParameter(EventType.PARAMS_ERROR.KEY_CAUSE);
-                logger.info("Reader:{} Module Event is detecting:{}", getDeviceName(), eventData.toString());
-
-                AlarmEventData alarmEventData = new AlarmEventData();
-                event_fmt_time = dstSdf.format(new Date());
-
-                if (cause != null) {
-                    if (cause.equalsIgnoreCase(EventType.PARAMS_ERROR.VAL_CAUSE_ANTENNA)) {
-                        readerClient.use(Command.ANTENNA_DETECT).run();
-
-                        String antennaList = readerClient.getResult().retString();
-
-
-                        logger.info("Reader:{} Antenna loss! alive antenna list:{}", getDeviceName(), antennaList);
-
-                        alarmEventData.setDevice_name(rrmConfig.getReaderName());
-                        alarmEventData.setEvent_name("alarm");
-                        alarmEventData.setAlarm_code("-1");
-                        alarmEventData.setAlarm_reason(eventData.toString());
-                        alarmEventData.setTime(event_fmt_time);
-
-                        new Thread(new PostAlarmData(rrmConfig.getAlarmURL(), alarmEventData)).start();
-
-                    } else if (cause.equalsIgnoreCase(EventType.PARAMS_ERROR.VAL_CAUSE_TEMPERATURE)) {
-                        logger.info("Reader:{} Temperature is too high!", getDeviceName());
-
-                        alarmEventData.setDevice_name(rrmConfig.getReaderName());
-                        alarmEventData.setEvent_name("alarm");
-                        alarmEventData.setAlarm_code("-2");
-                        alarmEventData.setAlarm_reason("Temperature maybe dangerous!");
-                        alarmEventData.setTime(event_fmt_time);
-
-                        new Thread(new PostAlarmData(rrmConfig.getAlarmURL(), alarmEventData)).start();
-                    } else
-                        logger.info("reader:{} Unknown error!", getDeviceName());
-                } else {
-                    logger.info("Error event is raised and cause content is null!");
                 }
             } else {
                 if ( eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) == null)
-                    logger.info("Reader:{} epc data is null! ", getDeviceName());
-                logger.info("Reader:{} Unknown event type:{} ", getDeviceName(), eventData.getType());
+                    logger.info("reader:{} epc data is null! ", getDeviceName());
             }
         }
 
 //        @Override
         public void Notified(Object o, String s) {
-            logger.error("Reader:{} Notified:{}", getDeviceName(), s);
+            logger.error("reader:{} Notified:{}", getDeviceName(), s);
 
             if (s.equalsIgnoreCase("ntf_disconn"))
                 setConnected(false);

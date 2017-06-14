@@ -35,8 +35,8 @@
            <!--entry2DO="B磅觸發DO編號" entry2Port="B磅指定觸發之antenna port"-->
 
     <ReaderConfig>
-        <Reader name="readerYDT3" ip="192.168.1.238" departureTimeout="1000">
-            <!--<Invoke type="barrier" ioCtrlId="barrier" ioCtrlIp="192.168.1.240" entryDI="0" entryPort="1"/>-->
+        <Reader name="readerYDT3" ip="192.168.1.238" departureTimeout="10000" readCount="10">
+            <Invoke type="barrier" ioCtrlId="barrier" ioCtrlIp="192.168.1.240" entryDI="1" entryPort="1" entry1DO="0" entry1Port="1" entry2DO="1" entry2Port="1"/>
             <AntennaPort id="1" power="2200"/>
             <AntennaPort id="2" power="" />
             <AntennaPort id="4" power="" />

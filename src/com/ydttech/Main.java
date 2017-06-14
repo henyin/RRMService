@@ -31,7 +31,7 @@ public class Main {
         logger.info("SpecificationTitle: " + objPackage.getSpecificationTitle());
         logger.info("SpecificationVersion: " + objPackage.getSpecificationVersion());
         logger.info("SpecificationVendor: " + objPackage.getSpecificationVendor());
-        logger.info("ImplementationTitle: " + objPackage.getImplementationTitle());
+        logger.debug("ImplementationTitle: " + objPackage.getImplementationTitle());
         logger.info("ImplementationVersion: " + objPackage.getImplementationVersion());
         logger.info("ImplementationVendor: " + objPackage.getImplementationVendor());
 

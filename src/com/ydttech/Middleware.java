@@ -149,6 +149,7 @@ public class Middleware {
                     rrmConfig.setReaderName(node.valueOf("@name"));
                     rrmConfig.setIpAddr(node.valueOf("@ip"));
                     rrmConfig.setDepartureTimeout(node.valueOf("@departureTimeout"));
+                    rrmConfig.setReadCount(node.valueOf("@readCount"));
 
                     Node invokeNode = node.selectSingleNode("Invoke");
                     if (invokeNode != null) {
@@ -158,6 +159,8 @@ public class Middleware {
                         if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_BARRIER)) {
                             rrmConfig.setEntryDI(invokeNode.valueOf("@entryDI"));
                             rrmConfig.setEntryPort(invokeNode.valueOf("@entryPort"));
+                            if (rrmConfig.getReadCount().equalsIgnoreCase(""))
+                                rrmConfig.setReadCount("10");
                         } else if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_WEIGH)) {
                             rrmConfig.setEntryDI("0");
                             rrmConfig.setEntryPort("0");

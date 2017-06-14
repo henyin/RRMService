@@ -7,11 +7,11 @@
     </properties>
 
     <Appenders>
-        <File name="file" fileName="../logs/${name}.log">
-            <PatternLayout>
-                <Pattern>${pattern}</Pattern>
-            </PatternLayout>
-        </File>
+        <!--<File name="file" fileName="../logs/${name}.log">-->
+            <!--<PatternLayout>-->
+                <!--<Pattern>${pattern}</Pattern>-->
+            <!--</PatternLayout>-->
+        <!--</File>-->
         <Console name="STDOUT" target="SYSTEM_OUT">
             <PatternLayout pattern="${pattern}"/>
         </Console>
@@ -28,7 +28,7 @@
 
     <Loggers>
         <Root level="trace">
-            <AppenderRef ref="file" level="INFO"/>
+            <!--<AppenderRef ref="file" level="INFO"/>-->
             <AppenderRef ref="STDOUT" level="INFO"/>
             <AppenderRef ref="RollingFile" level="INFO"/>
         </Root>
