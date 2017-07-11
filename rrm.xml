@@ -3,7 +3,7 @@
 
     <!-- 不啟用TagFilter 時 請將Pattern 項目刪除 -->
     <TagFilter>
-        <!--<Pattern>09300402</Pattern>-->
+        <Pattern>201310030000000000000096</Pattern>
         <!--<Pattern>20160107</Pattern>-->
     </TagFilter>
 
@@ -35,15 +35,24 @@
            <!--entry2DO="B磅觸發DO編號" entry2Port="B磅指定觸發之antenna port"-->
 
     <ReaderConfig>
-        <Reader name="readerYDT3" ip="192.168.1.238" departureTimeout="10000" readCount="10">
-            <Invoke type="barrier" ioCtrlId="barrier" ioCtrlIp="192.168.1.240" entryDI="1" entryPort="1" entry1DO="0" entry1Port="1" entry2DO="1" entry2Port="1"/>
+        <Reader name="YDT3" ip="192.168.50.199" departureTimeout="10000" readCount="10">
+            <Invoke type="weigh" ioCtrlId="barrier" ioCtrlIp="192.168.50.85" entryDI="0" entryPort="1 3" entry1DO="0" entry1Port="2 4" entry2DO="1" entry2Port="1 3"/>
             <AntennaPort id="1" power="2200"/>
-            <AntennaPort id="2" power="" />
-            <AntennaPort id="4" power="" />
-            <AntennaPort id="3" power="" />
+            <AntennaPort id="2" power="2200" />
+            <AntennaPort id="4" power="2200" />
+            <AntennaPort id="3" power="2200" />
             <TemperatureLimit min="-30" max="60" />
             <ConnBrokenLimit timeout="10000" times="3" />
         </Reader>
+        <!--<Reader name="YDT4" ip="192.168.50.19" departureTimeout="10000" readCount="10">-->
+            <!--<Invoke type="weigh" ioCtrlId="barrier" ioCtrlIp="192.168.50.8" entryDI="0" entryPort="1" entry1DO="2" entry1Port="4" entry2DO="3" entry2Port="3"/>-->
+            <!--<AntennaPort id="1" power="2200"/>-->
+            <!--<AntennaPort id="2" power="2200" />-->
+            <!--<AntennaPort id="4" power="2200" />-->
+            <!--<AntennaPort id="3" power="2200" />-->
+            <!--<TemperatureLimit min="-30" max="60" />-->
+            <!--<ConnBrokenLimit timeout="10000" times="3" />-->
+        <!--</Reader>-->
         <!--<Reader name="readerYDT2" ip="192.168.50.199" departureTimeout="5000">-->
             <!--<Invoke type="weigh" ioCtrlId="weigh" ioCtrlIp="192.168.50.85" entryDI="0" entryPort="1" entry1DO="0" entry1Port="1 2" entry2DO="1" entry2Port="3 4"/>-->
             <!--<AntennaPort id="1" power="2200" />-->

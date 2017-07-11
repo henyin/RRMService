@@ -15,7 +15,7 @@ import java.sql.*;
  */
 public class LogDb {
 
-    private static Logger logger = LoggerFactory.getLogger("LogDb");
+    private Logger logger = LoggerFactory.getLogger("LogDb");
 
     private String dbURL;
     private Connection conn;
@@ -43,7 +43,18 @@ public class LogDb {
     private final String offSynchronous = "PRAGMA synchronous = OFF";
     private final String offJournalMode = "PRAGMA journal_mode = OFF";
 
-    static {
+//    static {
+//        try {
+//            Class.forName("org.sqlite.JDBC");
+//        } catch (Exception e) {
+//            StringWriter error = new StringWriter();
+//            e.printStackTrace(new PrintWriter(error));
+//            logger.error(error.toString());
+//        }
+//    }
+
+    public LogDb(String dbURL) {
+
         try {
             Class.forName("org.sqlite.JDBC");
         } catch (Exception e) {
@@ -51,9 +62,7 @@ public class LogDb {
             e.printStackTrace(new PrintWriter(error));
             logger.error(error.toString());
         }
-    }
 
-    public LogDb(String dbURL) {
         this.dbURL = dbURL;
     }
 

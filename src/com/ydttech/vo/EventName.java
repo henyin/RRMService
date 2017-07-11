@@ -8,4 +8,5 @@ public class EventName {
     public static final String REPORT = "event.tag.report";
     public static final String DEPARTURE = "event.tag.departure";
     public static final String UNKNOWN = "event.tag.unknown";
+    public static final String RAW_ARRIVE = "event.tag.raw_arrive";
 }

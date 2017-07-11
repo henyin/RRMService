@@ -19,6 +19,15 @@ public class NormalEventData implements Cloneable {
     private final String LTagPattern = "09300402";
     private final String MTagPattern = "20160107";
     private boolean isVerified = false;
+    private int readCount = 0;
+
+    public int getReadCount() {
+        return readCount;
+    }
+
+    public void setReadCount(int readCount) {
+        this.readCount = readCount;
+    }
 
     public boolean isVerified() {
         return isVerified;

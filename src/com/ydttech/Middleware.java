@@ -3,6 +3,7 @@ package com.ydttech;
 import com.ydttech.core.BarrierReader;
 import com.ydttech.core.ReaderDev;
 import com.ydttech.core.WeighReader;
+import com.ydttech.core.WeighReaderExt;
 import com.ydttech.vo.InvokeType;
 import com.ydttech.vo.RRMConfig;
 import org.dom4j.Document;
@@ -68,7 +69,7 @@ public class Middleware {
                 else if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_BARRIER))
                     new Thread(new BarrierReader((rrmConfig))).start();
                 else if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_WEIGH))
-                    new Thread(new WeighReader((rrmConfig))).start();
+                    new Thread(new WeighReaderExt((rrmConfig))).start();
                 else
                     new Thread(new ReaderDev((rrmConfig))).start();
             }
@@ -160,7 +161,7 @@ public class Middleware {
                             rrmConfig.setEntryDI(invokeNode.valueOf("@entryDI"));
                             rrmConfig.setEntryPort(invokeNode.valueOf("@entryPort"));
                             if (rrmConfig.getReadCount().equalsIgnoreCase(""))
-                                rrmConfig.setReadCount("10");
+                                rrmConfig.setReadCount("15");
                         } else if (rrmConfig.getInvokeType().equalsIgnoreCase(InvokeType.INVOKE_TYPE_WEIGH)) {
                             rrmConfig.setEntryDI("0");
                             rrmConfig.setEntryPort("0");

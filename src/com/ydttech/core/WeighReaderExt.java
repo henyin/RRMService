@@ -4,11 +4,16 @@ import com.ydt.driver.ConnectionException;
 import com.ydt.driver.ConnectionType;
 import com.ydt.driver.IEventDataListener;
 import com.ydt.invoke.InvokeError;
+import com.ydt.invoke.InvokeResult;
 import com.ydt.log.Report;
 import com.ydt.reader.Command;
 import com.ydt.reader.ReaderClient;
 import com.ydt.types.EventData;
 import com.ydt.types.EventType;
+import com.ydttech.optc.util.CoilsEventListener;
+import com.ydttech.optc.util.DICoilsMessage;
+import com.ydttech.optc.util.DOCoilsMessage;
+import com.ydttech.optc.util.ModbusUtil;
 import com.ydttech.util.LogDb;
 import com.ydttech.vo.*;
 import org.slf4j.Logger;
@@ -24,18 +29,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static java.lang.Thread.sleep;
-import static java.lang.Thread.yield;
-
 /**
  * Created by Ean.Chung on 2016/10/12.
  */
-public class ReaderDev implements Runnable {
+public class WeighReaderExt implements Runnable {
 
-    private Logger logger = LoggerFactory.getLogger("ReaderDev");
+    private Logger logger = LoggerFactory.getLogger("WeighReader");
 
     private  EventDataAnalyst eventDataAnalyst;
-    Thread doAnalyst;
 
     private ReaderClient readerClient;
 
@@ -66,7 +67,93 @@ public class ReaderDev implements Runnable {
     private String alarm_fmt_time, event_fmt_time;
     private int currDayOfYear  = Calendar.getInstance().get(Calendar.DAY_OF_YEAR);
 
-    public ReaderDev(RRMConfig rrmConfig) {
+    private boolean isActiveReader = false;
+    private boolean isSuspendReader = true;
+
+    private boolean isEntry1Signal = false;
+    private boolean isEntry2Signal = false;
+    private String entry1Antenna = "";
+    private String entry2Antenna = "";
+    private StringBuilder enableAntenna = new StringBuilder();
+
+    private NormalEventData latestEventData = new NormalEventData();
+    private boolean waitingArrive = false;
+
+    private ModbusUtil weighModbus;
+    String ioCtrlId = "Weigh Controller";
+    String ioCtrlIp = "localhost";
+    private CoilsEventListener coilsEventListener = new CoilsEventListener() {
+        @Override
+        public void DIChangeEvent(DICoilsMessage diCoilsMessage) {
+//            if (diCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntryDI())) == true) {
+//                isActiveReader = true;
+//            }
+//
+//            if (diCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntryDI())) == false) {
+//                isSuspendReader = true;
+//            }
+        }
+
+        @Override
+        public void DOChangeEvent(DOCoilsMessage doCoilsMessage) {
+            if (isEntry1Signal == false && doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry1DO())) == true) {
+                isEntry1Signal = true;
+                logger.info("reader:{} isEntry1Signal:{} isEntry2Signal:{} enableAntenna:{} by trigger!",
+                        rrmConfig.getReaderName(), isEntry1Signal, isEntry2Signal, rrmConfig.getEntryPort());
+                waitingArrive = true;
+                return;
+            }
+
+            if (isEntry2Signal == false && doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry2DO())) == true) {
+                isEntry2Signal = true;
+                logger.info("reader:{} isEntry1Signal:{} isEntry2Signal:{} enableAntenna:{} by trigger!",
+                        rrmConfig.getReaderName(), isEntry1Signal, isEntry2Signal, rrmConfig.getEntryPort());
+                waitingArrive = true;
+                return;
+            }
+
+            if (doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry1DO())) == false && isEntry1Signal == true) {
+                isEntry1Signal = false;
+
+                if (waitingArrive &&
+                        (System.currentTimeMillis() - latestEventData.getpLatestTimeMillis()) < Integer.parseInt(rrmConfig.getDepartureTimeout()) &&
+                        rrmConfig.getEntry1Port().indexOf(latestEventData.getAntenna()) != -1) {
+                    logger.info("reader:{} trace back to get latest etag data epc:{} to send arrive!",
+                            rrmConfig.getReaderName(), latestEventData.getEpc());
+                    add(latestEventData);
+                } else {
+                    logger.info("reader:{} didn't receive suitable eTag data in triggering time!", getDeviceName());
+                }
+                waitingArrive = false;
+
+                logger.info("reader:{} isEntry1Signal:{} isEntry2Signal:{} enableAntenna:{} by trigger!",
+                        rrmConfig.getReaderName(), isEntry1Signal, isEntry2Signal, rrmConfig.getEntryPort());
+                return;
+            }
+
+            if (doCoilsMessage.getBitVector().getBit(Integer.parseInt(rrmConfig.getEntry2DO())) == false && isEntry2Signal == true) {
+                isEntry2Signal = false;
+
+                if (waitingArrive &&
+                        (System.currentTimeMillis() - latestEventData.getpLatestTimeMillis()) <= Integer.parseInt(rrmConfig.getDepartureTimeout()) &&
+                        rrmConfig.getEntry2Port().indexOf(latestEventData.getAntenna()) != -1) {
+                    logger.info("reader:{} trace back to get latest etag data epc:{} to send arrive!",
+                            rrmConfig.getReaderName(), latestEventData.getEpc());
+                } else {
+                    logger.info("reader:{} didn't receive suitable eTag data in triggering time!", getDeviceName());
+                }
+                waitingArrive = false;
+
+                logger.info("reader:{} isEntry1Signal:{} isEntry2Signal:{} enableAntenna:{} by trigger!",
+                        rrmConfig.getReaderName(), isEntry1Signal, isEntry2Signal, rrmConfig.getEntryPort());
+                return;
+            }
+
+
+        }
+    };
+
+    public WeighReaderExt(final RRMConfig rrmConfig) {
         this.rrmConfig = rrmConfig;
         deviceName = rrmConfig.getReaderName();
         alarmURL = rrmConfig.getAlarmURL();
@@ -107,6 +194,65 @@ public class ReaderDev implements Runnable {
 
     }
 
+    public boolean openWeighModbus() {
+
+        boolean retCode = false;
+
+        ioCtrlId = rrmConfig.getIoCtrlId();
+        ioCtrlIp = rrmConfig.getIoCtrlIp();
+
+        weighModbus = new ModbusUtil(ioCtrlId, ioCtrlIp, 8, 8, true);
+        weighModbus.setEventTimer(100);
+
+        if (!weighModbus.open()) {
+            logger.error("modbus slave:{} connection to {} is failure!", ioCtrlId, ioCtrlIp);
+            return retCode;
+
+        } else {
+            logger.info("modbus slave:{} connection to {} is successful!", ioCtrlId, ioCtrlIp);
+        }
+
+        if (weighModbus.registerEvent(coilsEventListener)) {
+            logger.info("register IOController:{} event is successful!", ioCtrlId);
+            weighModbus.activeEvent();
+            retCode = true;
+        } else {
+            logger.error("register IOController:{} event is failure!", ioCtrlId);
+        }
+
+        return retCode;
+    }
+
+    public boolean closeWeighModbus() {
+
+        boolean retCode = false;
+
+        if (weighModbus.standbyEvent()) {
+            logger.info("standby IOController:{} event is successful!", ioCtrlId);
+            retCode = true;
+        } else {
+            logger.error("standby IOController:{} event is failure!", ioCtrlId);
+        }
+
+        weighModbus.close();
+
+        return retCode;
+
+    }
+
+    public int setAntMux(String antenna) {
+
+        int retCode = 0;
+
+        InvokeResult invokeResult =  readerClient.use(Command.ANTENNA_SET_MUX)
+                .with("antenna", antenna)
+                .run();
+
+        retCode = invokeResult.error();
+
+        return retCode;
+    }
+
     public int connect(int timeout) {
 
         int retCode = InvokeError.OK;
@@ -114,20 +260,18 @@ public class ReaderDev implements Runnable {
         try {
             if (readerClient != null) {
                 readerClient.close();
-//                readerClient = null;
             }
 
-//            readerClient = new ReaderClient(ConnectionType.SOCKET, rrmConfig.getIpAddr());
-//
-//            readerClient.setReport(getDeviceName(), "../logs", Report.Level.EVENT, Report.Level.ERROR);
             readerClient.open();
             readerClient.setTimeout(timeout);
             lastConnectedTime = System.currentTimeMillis();
+            setConnected(true);
 
         } catch (Exception e) {
             StringWriter error = new StringWriter();
             e.printStackTrace(new PrintWriter(error));
             retCode = InvokeError.FAIL;
+            setConnected(false);
             logger.error("reader:{} msg:{}", rrmConfig.getReaderName(), error.toString());
         }
 
@@ -137,7 +281,6 @@ public class ReaderDev implements Runnable {
     public int login() {
 
         readerClient.setEventListerner(eventObj);
-
 
         readerClient.use(Command.USER_LOG_IN)
                 .with("account", "admin")
@@ -188,6 +331,11 @@ public class ReaderDev implements Runnable {
                 logger.info("reader:{} Antenna:{} is disabled!",
                         getDeviceName(),
                         id);
+
+                readerClient.use(Command.ANTENNA_SET_POWER)
+                        .with("antenna", id)
+                        .with("power", "0")
+                        .run();
             }
         }
 
@@ -350,108 +498,112 @@ public class ReaderDev implements Runnable {
 
     @Override
     public void run() {
+        openWeighModbus();
 
-        while (true) {
+        if (!(connect(connBrokenTimeoutLimit) == InvokeError.OK)) {
+            logger.error("reader:{} connecting to {} is failure!", rrmConfig.getReaderName(), rrmConfig.getIpAddr());
+        }
+
+        if (login() != InvokeError.OK) {
+            logger.error("reader:{} logging is failure!", rrmConfig.getReaderName());
+        }
+
+        if (standby() != InvokeError.OK) {
+            logger.error("reader:{} standby event mode is failure!", rrmConfig.getReaderName());
+        }
+
+        if (setAntennaPort() != InvokeError.OK) {
+            logger.error("reader:{} set antenna port power is failure!", rrmConfig.getReaderName());
+        }
+
+        if (setAntMux(rrmConfig.getEntryPort()) != InvokeError.OK) {
+            logger.error("reader:{} set antenna mux:{} is failure", rrmConfig.getReaderName(), rrmConfig.getEntryPort());
+        }
+
+        if (setEventDataFmt() != InvokeError.OK) {
+            logger.info("reader:{} set event data format is failure", rrmConfig.getReaderName());
+        }
+
+        if (activity() != InvokeError.OK) {
+            logger.info("reader:{} active into event mode is failure!", rrmConfig.getReaderName());
+        }
+
+        while(true) {
+
             try {
+
                 if (!isConnected()) {
-                    sleep(connBrokenTimeoutLimit);
-                    if (connect(connBrokenTimeoutLimit) == InvokeError.OK) {
-                        logger.info("reader:{} open connection is OK!", getDeviceName());
+                    addCurrConnBrokenTimes(1);
+                    logger.info("reader:{} re-connect times={}",
+                            getDeviceName(),
+                            getCurrConnBrokenTimes());
 
-                        if (rebootFlag) {
-                            logger.info("reader:{} network status may be not stable now, will reset reader network env.!", getDeviceName());
-                            setConnected(false);
-                            reboot();
-//                            sleep(REBOOT_WAITING_TIME);
-                            continue;
-                        }
+                    if (getCurrConnBrokenTimes() % getConnBrokenTimesLimit() == 0) {
 
-                        if (login() == InvokeError.OK) {
-                            logger.info("reader:{} login is OK!", getDeviceName());
-                            if (setAntennaPort() == InvokeError.OK) {
-                                logger.info("reader:{} set antenna port is OK!", getDeviceName());
-                                if (standby() == InvokeError.OK) {
-                                    if (setEventDataFmt() == InvokeError.OK) {
-                                        logger.info("reader:{} set event data format is OK!", getDeviceName());
-                                        if (activity() == InvokeError.OK) {
-                                            logger.info("reader:{} event channel:{}", getDeviceName(),
-                                                    readerClient.getEventChannel().getID());
-                                            setConnected(true);
-
-                                            AlarmEventData alarmEventData = new AlarmEventData();
-
-                                            alarm_fmt_time = dstSdf.format(new Date());
-                                            alarmEventData.setDevice_name(getDeviceName());
-                                            alarmEventData.setEvent_name("alarm");
-                                            alarmEventData.setAlarm_code("0");
-                                            alarmEventData.setAlarm_reason("Reader:" + getDeviceName() + " initial successfully!");
-                                            alarmEventData.setTime(alarm_fmt_time);
-
-                                            logDb.addAlarmEvent(alarmEventData);
-                                            logger.info("reader:{} set active is ok!", getDeviceName());
-
-                                        } else
-                                            logger.info("reader:{} re-active is failure!", getDeviceName());
-                                    } else
-                                        logger.info("reader:{} set event data format is failure!", getDeviceName());
-                                } else
-                                    logger.info("reader:{} set standby is failure!", getDeviceName());
-                            } else
-                                logger.info("reader:{} set antenna port is failure!", getDeviceName());
-                        } else
-                            logger.info("reader:{} login is failure!", getDeviceName());
-                    } else {
-                        logger.info("reader:{} open connection is failure!", getDeviceName());
-
-                        addCurrConnBrokenTimes(1);
-                        logger.info("reader:{} re-connect times={}",
+                        logger.info("reader:{} connection is broken {} times in every {} milliseconds!",
                                 getDeviceName(),
-                                getCurrConnBrokenTimes());
+                                getCurrConnBrokenTimes(),
+                                getConnBrokenTimeoutLimit());
 
-                        if (getCurrConnBrokenTimes() % getConnBrokenTimesLimit() == 0) {
+                        AlarmEventData alarmEventData = new AlarmEventData();
+                        String alarm_fmt_time;
 
-                            logger.info("reader:{} connection is broken {} times in every {} milliseconds!",
-                                    getDeviceName(),
-                                    getCurrConnBrokenTimes(),
-                                    getConnBrokenTimeoutLimit());
+                        alarm_fmt_time = dstSdf.format(new Date());
+                        alarmEventData.setDevice_name(getDeviceName());
+                        alarmEventData.setEvent_name("alarm");
+                        alarmEventData.setAlarm_code("1");
+                        alarmEventData.setAlarm_reason("Connection is broken Reader:" + getDeviceName());
+                        alarmEventData.setTime(alarm_fmt_time);
 
-                            AlarmEventData alarmEventData = new AlarmEventData();
-                            String alarm_fmt_time;
+                        Thread postThread = new Thread(new PostAlarmData(getAlarmURL(), alarmEventData));
+                        postThread.start();
 
-                            alarm_fmt_time = dstSdf.format(new Date());
-                            alarmEventData.setDevice_name(getDeviceName());
-                            alarmEventData.setEvent_name("alarm");
-                            alarmEventData.setAlarm_code("1");
-                            alarmEventData.setAlarm_reason("Connection is broken Reader:" + getDeviceName());
-                            alarmEventData.setTime(alarm_fmt_time);
-
-                            Thread postThread = new Thread(new PostAlarmData(getAlarmURL(), alarmEventData));
-                            postThread.start();
-
-                            logDb.addAlarmEvent(alarmEventData);
-                        }
+                        logDb.addAlarmEvent(alarmEventData);
                     }
+
+                    if (!(connect(connBrokenTimeoutLimit) == InvokeError.OK)) {
+                        logger.error("reader:{} connecting to {} is failure!", rrmConfig.getReaderName(), rrmConfig.getIpAddr());
+                        Thread.sleep(connBrokenTimeoutLimit);
+                        continue;
+                    }
+
+                    if (login() != InvokeError.OK) {
+                        logger.error("reader:{} logging is failure!", rrmConfig.getReaderName());
+                        continue;
+                    }
+
+                    if (standby() != InvokeError.OK) {
+                        logger.error("reader:{} standby event mode is failure!", rrmConfig.getReaderName());
+                        continue;
+                    }
+
+                    if (setAntMux(rrmConfig.getEntryPort()) != InvokeError.OK) {
+                        logger.error("reader:{} set antenna mux:{} is failure", rrmConfig.getReaderName(), rrmConfig.getEntryPort());
+                        continue;
+                    }
+
+                    if (setEventDataFmt() != InvokeError.OK) {
+                        logger.info("reader:{} set event data format is failure", rrmConfig.getReaderName());
+                        continue;
+                    }
+
                 } else {
-                    System.gc();
-                    yield();
+                    logger.info("reader:{} isEntry1Signal:{} isEntry2Signal:{}", rrmConfig.getReaderName(), isEntry1Signal, isEntry2Signal);
                 }
+                Thread.sleep(connBrokenTimeoutLimit);
             } catch (Exception e) {
-                StringWriter error = new StringWriter();
-                e.printStackTrace(new PrintWriter(error));
-                logger.error("reader:{} is not keep running! e:{}",getDeviceName(), error.toString());
-                stopDevice();
-            } finally {
-                try {
-                    System.gc();
-                    sleep(connBrokenTimeoutLimit);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                logger.error("main loop exception:{}", e.getMessage());
             }
+
         }
     }
 
     class SelfCheckJob extends TimerTask  {
+
+        private void checkIOCtrl() {
+            if (!weighModbus.isAlive())
+                openWeighModbus();
+        }
 
         private void checkTemperature() {
             int temperature = getTemperature();
@@ -539,21 +691,34 @@ public class ReaderDev implements Runnable {
             }
         }
 
+        private void checkAntenna() {
+            int retCode = 0;
+
+            InvokeResult invokeResult =  readerClient.use(Command.ANTENNA_DETECT)
+                    .run();
+
+            logger.info("reader:{} Get connected antenna ports:[{}]", getDeviceName(), invokeResult.retString());
+
+        }
+
         @Override
         public void run() {
 
             try {
+                checkIOCtrl();
+
                 if (isConnected()) {
-                    if (getCurrConnBrokenTimes() >= 2) {
-                        setCurrConnBrokenTimes(0);
-                        setRebootFlag(true);
-                        logger.info("reader:{} reset network flag:{} next time will be reset!", getDeviceName(), isRebootFlag());
-                    }
+//                    if (getCurrConnBrokenTimes() >= 2) {
+//                        setCurrConnBrokenTimes(0);
+//                        setRebootFlag(true);
+//                        logger.info("Reader:{} reset network flag:{} next time will be reset!", getDeviceName(), isRebootFlag());
+//                    }
 
                     if (currDataMap.isEmpty()) {
                         checkTemperature();
                         purgeLogDB();
                         getOperatingMode();
+//                        checkAntenna();
                         System.gc();
                     } else
                         logger.info("reader:{} routine check process is suspend while tag data is exist! amount of data:{}", getDeviceName(), currDataMap.size());
@@ -570,13 +735,13 @@ public class ReaderDev implements Runnable {
     public void add(NormalEventData packedEventData) {
 
         String tagKey = packedEventData.getEpc();
-//        NormalEventData reqPackedEventData = null;
 
-        synchronized (currDataMap) {
-
+//        synchronized (this) {
+        {
             if (!currDataMap.containsKey(tagKey) && packedEventData.getEpc() != null) {
                 packedEventData.setEvent_name(EventName.ARRIVE);
                 try {
+                    waitingArrive = false;
                     reqPackedEventData = (NormalEventData) packedEventData.clone();
                     currDataMap.put(tagKey, reqPackedEventData);
                     Thread postArrive = new Thread(new PostNormalData(rrmConfig.getArriveURL(), reqPackedEventData));
@@ -589,7 +754,6 @@ public class ReaderDev implements Runnable {
                     logger.error(error.toString());
                 }
             } else if (currDataMap.get(tagKey).getEvent_name().equals(EventName.ARRIVE)) {
-//            packedEventData.setEvent_name(EventName.REPORT);
                 currDataMap.put(tagKey, packedEventData);
             } else if (currDataMap.get(tagKey).getEvent_name().equals(EventName.REPORT)) {
                 currDataMap.put(tagKey, packedEventData);
@@ -599,9 +763,10 @@ public class ReaderDev implements Runnable {
             }
 
             if (!packedEventData.getEvent_name().equalsIgnoreCase(EventName.REPORT)) {
-                logger.info("reader:{} antenna:{} epc:{} event_name:{} time:{}",
+                logger.info("reader:{} antenna:{} epc:{} readCount:{} event_name:{} time:{}",
                         packedEventData.getDevice_name(),
                         packedEventData.getAntenna(), packedEventData.getEpc(),
+                        packedEventData.getReadCount(),
                         packedEventData.getEvent_name(), packedEventData.getTime());
 
                 logDb.addNormalEvent(packedEventData);
@@ -616,63 +781,20 @@ public class ReaderDev implements Runnable {
         @Override
         public void EventFound(Object sender, EventData eventData) {
 
-            if (eventData.getType() == EventType.EVENT_TAG_REPORT &&
-                    eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) != null) {
+            event_fmt_time = dstSdf.format(new Date());
 
-                NormalEventData normalEventData = new NormalEventData();
-
-                String epcData = eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC);
-
-                if (tagPatternList.size() == 0) {
-                    normalEventData.setVerified(true);
-                } else {
-                    for (String patternPrefix : tagPatternList) {
-                        if (epcData.startsWith(patternPrefix)) {
-                            normalEventData.setVerified(true);
-                            break;
-                        }
-                    }
-                }
-
-                if (normalEventData.isVerified()) {
-                    {
-                        event_fmt_time = dstSdf.format(new Date());
-
-                        normalEventData.setDevice_name(rrmConfig.getReaderName());
-                        normalEventData.setEvent_name(EventName.REPORT);
-                        normalEventData.setEpc(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC));
-
-                        if (eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID) == null) {
-                            logger.info("reader:{} epc:{} and tid is null!", getDeviceName(), eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC));
-                            normalEventData.setTid("");
-                        } else
-                            normalEventData.setTid(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID));
-
-                        normalEventData.setAntenna(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_ANTENNA));
-                        normalEventData.setRssi(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_RSSI));
-                        normalEventData.setTime(event_fmt_time);
-                        normalEventData.setpLatestTimeMillis(System.currentTimeMillis());
-
-                        add(normalEventData);
-                    }
-                } else {
-                    logger.info("reader:{} drop non-verified tag data! epc:{}", getDeviceName(), epcData);
-                    return;
-                }
-            } else if (eventData.getType() == EventType.EVENT_ERROR) {
+            if (eventData.getType() == EventType.EVENT_ERROR) {
 
                 String cause = eventData.getParameter(EventType.PARAMS_ERROR.KEY_CAUSE);
                 logger.info("reader:{} module event is detecting:{}", getDeviceName(), eventData.toString());
 
                 AlarmEventData alarmEventData = new AlarmEventData();
-                event_fmt_time = dstSdf.format(new Date());
 
                 if (cause != null) {
                     if (cause.equalsIgnoreCase(EventType.PARAMS_ERROR.VAL_CAUSE_ANTENNA)) {
                         readerClient.use(Command.ANTENNA_DETECT).run();
 
                         String antennaList = readerClient.getResult().retString();
-
 
                         logger.info("reader:{} antenna loss! alive antenna list:{}", getDeviceName(), antennaList);
 
@@ -699,10 +821,114 @@ public class ReaderDev implements Runnable {
                 } else {
                     logger.info("error event is raised and cause content is null!");
                 }
-            } else {
-                if ( eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) == null)
-                    logger.info("reader:{} epc data is null! ", getDeviceName());
-                logger.info("reader:{} unknown event type:{} ", getDeviceName(), eventData.getType());
+            }
+
+            if (eventData.getType() == EventType.EVENT_TAG_REPORT &&
+                    eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) != null) {
+
+                boolean isVerified = false;
+
+                if (tagPatternList.size() == 0) {
+                    isVerified = true;
+                } else {
+                    for (String patternPrefix : tagPatternList) {
+                        if (eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC).startsWith(patternPrefix)) {
+                            isVerified = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isVerified) {
+
+                    latestEventData.setDevice_name(rrmConfig.getReaderName());
+                    latestEventData.setEvent_name(EventName.REPORT);
+                    latestEventData.setEpc(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC));
+                    latestEventData.setVerified(true);
+
+                    if (eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID) == null) {
+                        latestEventData.setTid("");
+                    } else
+                        latestEventData.setTid(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID));
+
+                    latestEventData.setAntenna(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_ANTENNA));
+                    latestEventData.setRssi(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_RSSI));
+                    latestEventData.setTime(event_fmt_time);
+                    latestEventData.setpLatestTimeMillis(System.currentTimeMillis());
+                    latestEventData.setReadCount(Integer.parseInt(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_READCOUNT)));
+                }
+            }
+
+            if (!isEntry1Signal && !isEntry2Signal) {
+                return;
+            }
+
+            synchronized (this) {
+                if (eventData.getType() == EventType.EVENT_TAG_REPORT &&
+                        eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) != null) {
+
+                    NormalEventData normalEventData = new NormalEventData();
+
+                    if (tagPatternList.size() == 0) {
+                        normalEventData.setVerified(true);
+                    } else {
+                        for (String patternPrefix : tagPatternList) {
+                            if (eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC).startsWith(patternPrefix)) {
+                                normalEventData.setVerified(true);
+                                break;
+                            }
+                        }
+                    }
+
+                    if (normalEventData.isVerified()) {
+
+                        String antennaData = eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_ANTENNA);
+                        if (antennaData == null)
+                            return;
+
+                        if (rrmConfig.getEntry1Port().indexOf(antennaData) != -1) {
+                            if (!isEntry1Signal)
+                                return;
+                            else
+                                isEntry1Signal = false;
+                        }
+
+                        if (rrmConfig.getEntry2Port().indexOf(antennaData) != -1) {
+                            if (!isEntry2Signal)
+                                return;
+                            else
+                                isEntry2Signal = false;
+                        }
+
+                        normalEventData.setDevice_name(rrmConfig.getReaderName());
+                        normalEventData.setEvent_name(EventName.REPORT);
+                        normalEventData.setEpc(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC));
+                        normalEventData.setVerified(true);
+
+                        if (eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID) == null) {
+                            normalEventData.setTid("");
+                        } else
+                            normalEventData.setTid(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID));
+
+                        normalEventData.setAntenna(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_ANTENNA));
+                        normalEventData.setRssi(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_RSSI));
+                        normalEventData.setTime(event_fmt_time);
+                        normalEventData.setpLatestTimeMillis(System.currentTimeMillis());
+                        normalEventData.setReadCount(Integer.parseInt(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_READCOUNT)));
+                        logger.info("reader:{} recv verified tag data! epc:{} event_time:{}",
+                                getDeviceName(), eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC),
+                                event_fmt_time);
+                        add(normalEventData);
+                    } else {
+                        logger.info("reader:{} drop non-verified tag data! epc:{} event_time:{}",
+                                getDeviceName(), eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC),
+                                event_fmt_time);
+                        return;
+                    }
+                } else {
+                    if (eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) == null)
+                        logger.info("reader:{} epc data is null! ", getDeviceName());
+                }
             }
         }
 

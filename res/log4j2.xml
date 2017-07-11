@@ -3,7 +3,7 @@
 
     <properties>
     <property name="name">service</property>
-    <property name="pattern">[%d{yyyy/MM/dd HH:mm:ss.SSS}][%p][%c-%t-%L] %m%n</property>
+    <property name="pattern">[%d{yyyy/MM/dd HH:mm:ss.SSS}][%p][%c-%L] %m%n</property>
     </properties>
 
     <Appenders>
@@ -16,12 +16,15 @@
             <PatternLayout pattern="${pattern}"/>
         </Console>
         <RollingFile name="RollingFile" fileName="../logs/${name}.log"
-                     filePattern="../logs/$${date:yyyy-MM}/${name}-%d{yyyy-MM-dd}-%i.log.gz">
+                     filePattern="../logs/$${date:yyyy-MM}/${name}-%d{yyyy-MM-dd}.log.gz">
+                     <!--filePattern="../logs/$${date:yyyy-MM}/${name}-%d{yyyy-MM-dd}-%i.log.gz">-->
             <PatternLayout>
                 <Pattern>${pattern}</Pattern>
             </PatternLayout>
-            <!--<TimeBasedTriggeringPolicy />-->
-            <SizeBasedTriggeringPolicy size="10 MB"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy modulate="true" interval="1"/>
+            </Policies>
+            <!--<SizeBasedTriggeringPolicy size="10 MB"/>-->
             <DefaultRolloverStrategy max="10"/>
         </RollingFile>
     </Appenders>

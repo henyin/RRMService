@@ -25,7 +25,7 @@ import static java.lang.Thread.yield;
  */
 public class EventDataAnalyst implements Runnable {
 
-    private static Logger logger = LoggerFactory.getLogger("EventDataAnalyst");
+    private  Logger logger = LoggerFactory.getLogger("EventDataAnalyst");
 
     private int DEPARTURE_TIMEOUT_MILLISECONDS = 1000;
 
@@ -46,6 +46,9 @@ public class EventDataAnalyst implements Runnable {
     public EventDataAnalyst(RRMConfig rrmConfig, ConcurrentHashMap<String, NormalEventData> curHashMap) {
         this.rrmConfig = rrmConfig;
         this.currDataMap = curHashMap;
+
+        logger = LoggerFactory.getLogger(rrmConfig.getInvokeType()+"-"+rrmConfig.getReaderName());
+
         logDb = new LogDb(rrmConfig.getDbURL() + rrmConfig.getReaderName() + ".db");
         logDb.init();
     }
@@ -85,12 +88,18 @@ public class EventDataAnalyst implements Runnable {
                             postDepart.setPriority(Thread.MAX_PRIORITY);
                             postDepart.start();
 
-                            logger.info("Reader:{} antenna:{} epc:{} event_name:{} time:{} timeout={}",
+                            logger.info("reader:{} antenna:{} epc:{} event_name:{} time:{} timeout={}",
                                     normalEventData.getDevice_name(), normalEventData.getAntenna(),
                                     normalEventData.getEpc(), normalEventData.getEvent_name(), normalEventData.getTime(),
                                     DEPARTURE_TIMEOUT_MILLISECONDS);
 
                             logDb.addNormalEvent(normalEventData);
+                        }
+                    } else if (normalEventData.getEvent_name().equals(EventName.RAW_ARRIVE)) {
+                        if (currTimeMillis - normalEventData.getpLatestTimeMillis() >= DEPARTURE_TIMEOUT_MILLISECONDS) {
+                            logger.info("reader:{} drop raw arrive event epc:{} readCount:{}", normalEventData.getDevice_name(),
+                                    normalEventData.getEpc(), normalEventData.getReadCount());
+                            currDataMap.remove(normalEventData.getEpc());
                         }
                     }
                     yield();
@@ -108,7 +117,7 @@ public class EventDataAnalyst implements Runnable {
 
         if (packedEventData.getEvent_name().equalsIgnoreCase(EventName.DEPARTURE)) {
                 try {
-                    logger.info("Reader:{} epc:{} departure:{}",
+                    logger.info("reader:{} epc:{} departure:{}",
                             packedEventData.getDevice_name(), packedEventData.getEpc(), packedEventData.getTime());
 //                    new Thread(new PostNormalData(rrmConfig.getDepartureURL(), packedEventData)).start();
                     currDataMap.remove(packedEventData.getEpc());
@@ -118,7 +127,7 @@ public class EventDataAnalyst implements Runnable {
                     logger.error(error.toString());
                 }
             } else {
-                logger.info("Unexpected Reader:{} epc:{} event_name:{}",
+                logger.info("unexpected reader:{} epc:{} event_name:{}",
                         packedEventData.getDevice_name(), packedEventData.getEpc(), currDataMap.get(tagKey).getEvent_name());
             }
 

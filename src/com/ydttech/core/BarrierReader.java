@@ -38,7 +38,7 @@ import static java.lang.Thread.yield;
  */
 public class BarrierReader implements Runnable {
 
-    private static Logger logger = LoggerFactory.getLogger("BarrierReader");
+    private Logger logger = LoggerFactory.getLogger("BarrierReader");
 
     private  EventDataAnalyst eventDataAnalyst;
 
@@ -67,7 +67,7 @@ public class BarrierReader implements Runnable {
 
     private NormalEventData reqPackedEventData = null;
 
-    private static SimpleDateFormat dstSdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
+    private SimpleDateFormat dstSdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
     private String alarm_fmt_time, event_fmt_time;
     private int currDayOfYear  = Calendar.getInstance().get(Calendar.DAY_OF_YEAR);
 
@@ -89,7 +89,7 @@ public class BarrierReader implements Runnable {
                 isEntrySignal = false;
             }
 
-            logger.info("reader:{} isEntrySignal:{}", rrmConfig.getReaderName(), isEntrySignal);
+            logger.info("reader:{} isEntrySignal:{} by trigger!", rrmConfig.getReaderName(), isEntrySignal);
         }
 
         @Override
@@ -108,6 +108,8 @@ public class BarrierReader implements Runnable {
         connBrokenTimeoutLimit = Integer.parseInt(rrmConfig.getConnBrokenTimeoutLimit());
         tagPatternList = new ArrayList<String>(rrmConfig.getTagPatternList());
 
+        logger = LoggerFactory.getLogger(rrmConfig.getInvokeType()+"-"+deviceName);
+
         logDb = new LogDb(rrmConfig.getDbURL() + rrmConfig.getReaderName() + ".db");
         logDb.init();
 
@@ -116,13 +118,13 @@ public class BarrierReader implements Runnable {
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
-                logger.info("reader:{} device is standby!", rrmConfig.getReaderName());
+                logger.info("reader:{} device standby!", deviceName);
                 standby();
             }
         });
 
         Timer timer = new Timer();
-        long delayTime = 10 * 1000;
+        long delayTime = 60000;
         timer.schedule(selfCheckJob, delayTime, getConnBrokenTimeoutLimit());
 
         try {
@@ -130,7 +132,7 @@ public class BarrierReader implements Runnable {
         } catch (ConnectionException e) {
             StringWriter error = new StringWriter();
             e.printStackTrace(new PrintWriter(error));
-            logger.error("reader name:{} msg:{}", rrmConfig.getReaderName(), error.toString());
+            logger.error("reader:{} msg:{}", rrmConfig.getReaderName(), error.toString());
         }
 
         readerClient.setReport(getDeviceName(), "../logs/sdk", Report.Level.EVENT, Report.Level.ERROR);
@@ -215,7 +217,7 @@ public class BarrierReader implements Runnable {
             e.printStackTrace(new PrintWriter(error));
             retCode = InvokeError.FAIL;
             setConnected(false);
-            logger.error("reader name:{} msg:{}", rrmConfig.getReaderName(), error.toString());
+            logger.error("reader:{} msg:{}", rrmConfig.getReaderName(), error.toString());
         }
 
         return retCode;
@@ -336,7 +338,7 @@ public class BarrierReader implements Runnable {
         } catch (ConnectionException e) {
             StringWriter error = new StringWriter();
             e.printStackTrace(new PrintWriter(error));
-            logger.error("reader name:{} msg:{}", rrmConfig.getReaderName(), error.toString());
+            logger.error("reader:{} msg:{}", rrmConfig.getReaderName(), error.toString());
         }
     }
 
@@ -349,9 +351,10 @@ public class BarrierReader implements Runnable {
         if (readerClient.getResult().error() == InvokeError.OK) {
             if (readerClient.getResult().retString().equalsIgnoreCase("active"))
                 isActive = 1;
-            else
+            else if (readerClient.getResult().retString().equalsIgnoreCase("standby"))
                 isActive = 0;
-        }
+        } else
+            isActive = readerClient.getResult().error();
 
         return isActive;
     }
@@ -361,7 +364,7 @@ public class BarrierReader implements Runnable {
         try {
             readerClient.use(Command.READER_ALIVE).run();
         } catch (Exception e) {
-            logger.info("Exception in is Alive");
+            logger.error("exception in isAlive");
             return false;
         }
         return (boolean) readerClient.getResult().retvalue();
@@ -478,7 +481,7 @@ public class BarrierReader implements Runnable {
 
                     if (getCurrConnBrokenTimes() % getConnBrokenTimesLimit() == 0) {
 
-                        logger.info("reader:{} Connection is broken {} times in every {} milliseconds!",
+                        logger.info("reader:{} connection is broken {} times in every {} milliseconds!",
                                 getDeviceName(),
                                 getCurrConnBrokenTimes(),
                                 getConnBrokenTimeoutLimit());
@@ -599,30 +602,33 @@ public class BarrierReader implements Runnable {
         }
 
         private void getOperatingMode() {
-            if (getOPMode() == 1) {
-                logger.info("reader:{} is in active mode!", getDeviceName());
-            } else {
 
+            int opMode = getOPMode();
+            if (opMode == 1) {
+                logger.info("reader:{} is in active mode!", getDeviceName());
+            } else if (opMode == 0) {
                 AlarmEventData alarmEventData = new AlarmEventData();
 
                 alarm_fmt_time = dstSdf.format(new Date());
                 alarmEventData.setDevice_name(getDeviceName());
                 alarmEventData.setEvent_name("alarm");
                 alarmEventData.setAlarm_code("3");
-                alarmEventData.setAlarm_reason("Reader is not in active mode while in connection state!");
+                alarmEventData.setAlarm_reason("Reader maybe not in active mode while in connection state!");
                 alarmEventData.setTime(alarm_fmt_time);
 
-                Thread postThread = new Thread(new PostAlarmData(getAlarmURL(), alarmEventData));
-                postThread.start();
+//                Thread postThread = new Thread(new PostAlarmData(getAlarmURL(), alarmEventData));
+//                postThread.start();
 
                 logDb.addAlarmEvent(alarmEventData);
 
                 logger.info("reader:{} is in standby mode while in connection state!", getDeviceName());
                 if (activity() == InvokeError.OK) {
-                    logger.info("Restart reader:{} in active mode successfully, event channel:{}!", getDeviceName(), readerClient.getEventChannel().getID());
+                    logger.info("restart reader:{} in active mode successfully, event channel:{}!", getDeviceName(), readerClient.getEventChannel().getID());
                 } else {
-                    logger.info("Restart reader:{} in active mode failure!", getDeviceName());
+                    logger.info("restart reader:{} in active mode failure!", getDeviceName());
                 }
+            } else {
+                logger.error("reader:{} get operating mode command is fail! code = {}", getDeviceName(), opMode);
             }
         }
 
@@ -632,7 +638,7 @@ public class BarrierReader implements Runnable {
             InvokeResult invokeResult =  readerClient.use(Command.ANTENNA_DETECT)
                     .run();
 
-            logger.info("reader:{} Get connected antenna ports:[{}]", getDeviceName(), invokeResult.retString());
+            logger.info("reader:{} get connected antenna ports:[{}]", getDeviceName(), invokeResult.retString());
 
         }
 
@@ -653,7 +659,7 @@ public class BarrierReader implements Runnable {
                         checkTemperature();
                         purgeLogDB();
                         getOperatingMode();
-                        checkAntenna();
+//                        checkAntenna();
                         System.gc();
                     } else
                         logger.info("reader:{} routine check process is suspend while tag data is exist! amount of data:{}", getDeviceName(), currDataMap.size());
@@ -671,35 +677,72 @@ public class BarrierReader implements Runnable {
 
         String tagKey = packedEventData.getEpc();
 
-        synchronized (currDataMap) {
+//        synchronized (currDataMap) {
+        {
 
-            if (!currDataMap.containsKey(tagKey) && packedEventData.getEpc() != null) {
-                packedEventData.setEvent_name(EventName.ARRIVE);
+            if ( !currDataMap.containsKey(tagKey) && packedEventData.getEpc() != null ) {
+                if (packedEventData.getReadCount() < Integer.parseInt(rrmConfig.getReadCount())) {
+                    packedEventData.setEvent_name(EventName.RAW_ARRIVE);
+                } else {
+                    packedEventData.setEvent_name(EventName.ARRIVE);
+                }
+
                 try {
                     reqPackedEventData = (NormalEventData) packedEventData.clone();
                     currDataMap.put(tagKey, reqPackedEventData);
-                    Thread postArrive = new Thread(new PostNormalData(rrmConfig.getArriveURL(), reqPackedEventData));
-                    postArrive.setPriority(Thread.MAX_PRIORITY);
-                    postArrive.start();
-
                 } catch (Exception e) {
                     StringWriter error = new StringWriter();
                     e.printStackTrace(new PrintWriter(error));
                     logger.error(error.toString());
+                }
+
+                if (packedEventData.getEvent_name().equals(EventName.ARRIVE)) {
+                    isEntrySignal = false;
+                    logger.info("reader:{} isEntrySignal:{} by arrive!", rrmConfig.getReaderName(), isEntrySignal);
+                    Thread postArrive = new Thread(new PostNormalData(rrmConfig.getArriveURL(), reqPackedEventData));
+                    postArrive.setPriority(Thread.MAX_PRIORITY);
+                    postArrive.start();
+                }
+            } else if (currDataMap.get(tagKey).getEvent_name().equals(EventName.RAW_ARRIVE)) {
+                int currReadCount = currDataMap.get(tagKey).getReadCount();
+                if (currDataMap.get(tagKey).getReadCount() > Integer.parseInt(rrmConfig.getReadCount())) {
+                    currDataMap.get(tagKey).setEvent_name(EventName.ARRIVE);
+                    try {
+                        reqPackedEventData = (NormalEventData) currDataMap.get(tagKey).clone();
+                        currDataMap.put(tagKey, reqPackedEventData);
+                    } catch (Exception e) {
+                        StringWriter error = new StringWriter();
+                        e.printStackTrace(new PrintWriter(error));
+                        logger.error(error.toString());
+                    }
+
+                    {
+                        isEntrySignal = false;
+                        logger.info("reader:{} isEntrySignal:{} by arrive!", rrmConfig.getReaderName(), isEntrySignal);
+                        Thread postArrive = new Thread(new PostNormalData(rrmConfig.getArriveURL(), reqPackedEventData));
+                        postArrive.setPriority(Thread.MAX_PRIORITY);
+                        postArrive.start();
+                    }
+                } else {
+                    currDataMap.get(tagKey).setReadCount(currReadCount + packedEventData.getReadCount());
+                    logger.info("reader:{} epc:{} accumulated readCount:{}", packedEventData.getDevice_name(),
+                            packedEventData.getEpc(),
+                            currDataMap.get(tagKey).getReadCount());
                 }
             } else if (currDataMap.get(tagKey).getEvent_name().equals(EventName.ARRIVE)) {
                 currDataMap.put(tagKey, packedEventData);
             } else if (currDataMap.get(tagKey).getEvent_name().equals(EventName.REPORT)) {
                 currDataMap.put(tagKey, packedEventData);
             } else {
-                logger.info("Unexpected reader:{} epc:{} event_name:{}",
+                logger.info("unexpected reader:{} epc:{} event_name:{}",
                         packedEventData.getDevice_name(), packedEventData.getEpc(), currDataMap.get(tagKey).getEvent_name());
             }
 
             if (!packedEventData.getEvent_name().equalsIgnoreCase(EventName.REPORT)) {
-                logger.info("reader:{} antenna:{} epc:{} event_name:{} time:{}",
+                logger.info("reader:{} antenna:{} epc:{} readCount:{} event_name:{} time:{}",
                         packedEventData.getDevice_name(),
                         packedEventData.getAntenna(), packedEventData.getEpc(),
+                        packedEventData.getReadCount(),
                         packedEventData.getEvent_name(), packedEventData.getTime());
 
                 logDb.addNormalEvent(packedEventData);
@@ -717,7 +760,7 @@ public class BarrierReader implements Runnable {
             if (eventData.getType() == EventType.EVENT_ERROR) {
 
                 String cause = eventData.getParameter(EventType.PARAMS_ERROR.KEY_CAUSE);
-                logger.info("reader:{} Module Event is detecting:{}", getDeviceName(), eventData.toString());
+                logger.info("reader:{} module event is detecting:{}", getDeviceName(), eventData.toString());
 
                 AlarmEventData alarmEventData = new AlarmEventData();
                 event_fmt_time = dstSdf.format(new Date());
@@ -729,7 +772,7 @@ public class BarrierReader implements Runnable {
                         String antennaList = readerClient.getResult().retString();
 
 
-                        logger.info("reader:{} Antenna loss! alive antenna list:{}", getDeviceName(), antennaList);
+                        logger.info("reader:{} antenna loss! alive antenna list:{}", getDeviceName(), antennaList);
 
                         alarmEventData.setDevice_name(rrmConfig.getReaderName());
                         alarmEventData.setEvent_name("alarm");
@@ -740,7 +783,7 @@ public class BarrierReader implements Runnable {
                         new Thread(new PostAlarmData(rrmConfig.getAlarmURL(), alarmEventData)).start();
 
                     } else if (cause.equalsIgnoreCase(EventType.PARAMS_ERROR.VAL_CAUSE_TEMPERATURE)) {
-                        logger.info("reader:{} Temperature is too high!", getDeviceName());
+                        logger.info("reader:{} temperature is too high!", getDeviceName());
 
                         alarmEventData.setDevice_name(rrmConfig.getReaderName());
                         alarmEventData.setEvent_name("alarm");
@@ -750,9 +793,9 @@ public class BarrierReader implements Runnable {
 
                         new Thread(new PostAlarmData(rrmConfig.getAlarmURL(), alarmEventData)).start();
                     } else
-                        logger.info("reader:{} Unknown error!", getDeviceName());
+                        logger.info("reader:{} unknown error!", getDeviceName());
                 } else {
-                    logger.info("Error event is raised and cause content is null!");
+                    logger.info("error event is raised and cause content is null!");
                 }
             }
 
@@ -761,65 +804,60 @@ public class BarrierReader implements Runnable {
                 return;
             }
 
-            if (eventData.getType() == EventType.EVENT_TAG_REPORT &&
-                    eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) != null) {
+            synchronized (this) {
+                if (eventData.getType() == EventType.EVENT_TAG_REPORT &&
+                        eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) != null) {
 
-                NormalEventData normalEventData = new NormalEventData();
+                    NormalEventData normalEventData = new NormalEventData();
 
-                String epcData = eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC);
+                    String epcData = eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC);
 
-                if (tagPatternList.size() == 0) {
-                    normalEventData.setVerified(true);
-                } else {
-                    for (String patternPrefix : tagPatternList) {
-                        if (epcData.startsWith(patternPrefix)) {
-                            normalEventData.setVerified(true);
-                            break;
+                    if (tagPatternList.size() == 0) {
+                        normalEventData.setVerified(true);
+                    } else {
+                        for (String patternPrefix : tagPatternList) {
+                            if (epcData.startsWith(patternPrefix)) {
+                                normalEventData.setVerified(true);
+                                break;
+                            }
                         }
                     }
-                }
 
-                int tagReadCount = Integer.parseInt(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_READCOUNT));
+                    if (normalEventData.isVerified()) {
+                        event_fmt_time = dstSdf.format(new Date());
 
-                if (tagReadCount < Integer.parseInt(rrmConfig.getReadCount())) {
-                    logger.info("reader:{} Drop tag epc:{} readCount value:{} is less than {}!", getDeviceName(), epcData,
-                            tagReadCount, rrmConfig.getReadCount());
-                    return;
-                }
+                        normalEventData.setDevice_name(rrmConfig.getReaderName());
+                        normalEventData.setEvent_name(EventName.REPORT);
+                        normalEventData.setEpc(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC));
 
-                if (normalEventData.isVerified()) {
-                    event_fmt_time = dstSdf.format(new Date());
+                        if (eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID) == null) {
+                            logger.info("reader:{} epc:{} and tid is null!", getDeviceName(), eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC));
+                            normalEventData.setTid("");
+                        } else
+                            normalEventData.setTid(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID));
 
-                    normalEventData.setDevice_name(rrmConfig.getReaderName());
-                    normalEventData.setEvent_name(EventName.REPORT);
-                    normalEventData.setEpc(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC));
+                        normalEventData.setAntenna(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_ANTENNA));
+                        normalEventData.setRssi(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_RSSI));
+                        normalEventData.setTime(event_fmt_time);
+                        normalEventData.setpLatestTimeMillis(System.currentTimeMillis());
+                        normalEventData.setReadCount(Integer.parseInt(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_READCOUNT)));
 
-                    if (eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID) == null) {
-                        logger.info("reader:{} epc:{} and tid is null!", getDeviceName(), eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC));
-                        normalEventData.setTid("");
-                    } else
-                        normalEventData.setTid(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_TID));
-
-                    normalEventData.setAntenna(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_ANTENNA));
-                    normalEventData.setRssi(eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_RSSI));
-                    normalEventData.setTime(event_fmt_time);
-                    normalEventData.setpLatestTimeMillis(System.currentTimeMillis());
-
-                    add(normalEventData);
+                        add(normalEventData);
+                    } else {
+                        logger.info("reader:{} drop non-verified tag data! epc:{}",
+                                getDeviceName(), epcData);
+                        return;
+                    }
                 } else {
-                    logger.info("reader:{} Drop non-verified tag data! epc:{}",
-                            getDeviceName(), epcData);
-                    return;
+                    if (eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) == null)
+                        logger.info("reader:{} epc data is null! ", getDeviceName());
                 }
-            }  else {
-                if ( eventData.getParameter(EventType.PARAMS_TAG_REPORT.KEY_EPC) == null)
-                    logger.info("reader:{} epc data is null! ", getDeviceName());
             }
         }
 
 //        @Override
         public void Notified(Object o, String s) {
-            logger.error("reader:{} Notified:{}", getDeviceName(), s);
+            logger.error("reader:{} notified:{}", getDeviceName(), s);
 
             if (s.equalsIgnoreCase("ntf_disconn"))
                 setConnected(false);

@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Main-Class: com.ydttech.Main
 Name: RRM
 Specification-Title: RFID Reader Middleware for DUIT
-Specification-Version: 0.2.4
+Specification-Version: 0.2.8
 Specification-Vendor: YDT Technology International Co. Ltd.
 Implementation-Title: 20161024 1.first release
  0.2.0 1.new version for barrier and weigh station
@@ -10,5 +10,9 @@ Implementation-Title: 20161024 1.first release
  0.2.2 1.check sqlite db folder if not exits then create it
  0.2.3 1.fix error detection for barrier and weigh invoketype
  0.2.4 1.chekck repeat count value of barrier type
-Implementation-Version: 2017/06/12 10:35:00
+ 0.2.5 1.accumulated repeat count to increase detection correction
+ 0.2.6 1.adjust log format for check log more easy 2.modify synchronized section from add to Eventfound
+ 0.2.7 1.add reverse trigger mechanism to increase tag matching ratio
+ 0.2.8 1.ignore activ/standby warring alert
+Implementation-Version: 2017/07/11 10:35:00
 Implementation-Vendor: Ean.Chung
